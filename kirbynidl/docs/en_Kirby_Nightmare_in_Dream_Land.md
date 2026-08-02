@@ -1,4 +1,4 @@
-# Mega Man Zero 3 Archipelago
+# Kirby Nightmare in Dream Land Archipelago
 
 Welcome to the in-progress Kirby Nightmare in Dream Land Archipelago implementation project (developer VizCount). This document should contain all the necessary information to understand the alterations to the game, the options, and where development currently is.
 
