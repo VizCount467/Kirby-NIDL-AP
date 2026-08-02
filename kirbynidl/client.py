@@ -41,9 +41,11 @@ OW_WXY_TO_DOOR_NAME = {
     # (0,0xE,0x9) : 'Vegetable Valley Museum',
     # (0,0x1B,0x3) : 'Vegetable Valley Warp Station',
 }
-#Flesh out the above table with the right block of each door (and surrounding blocks, if necessary)
+#Flesh out the above table with the right block of each door, and all possible surrounding blocks (including diagonals)
 for k in list(OW_WXY_TO_DOOR_NAME.keys()):
-    OW_WXY_TO_DOOR_NAME[(k[1]+1,k[2])] = OW_WXY_TO_DOOR_NAME[k]
+    for dx in [-1,0,1,2]:
+        for dy in [-1,0,1]:
+            OW_WXY_TO_DOOR_NAME[(k[0], k[1]+dx, k[2]+dy)] = OW_WXY_TO_DOOR_NAME[k]
 
 #Table for item ID to name (since AP client sends ID's not names, it seems)
 ITEM_ID_TO_NAME = dict()
@@ -97,6 +99,20 @@ class KirbyNIDLClient(BizHawkClient):
         self.door_locked = False
         self.clear_flags_written = False
         self.sync_counter = 0
+        self.consumable_queue = []
+
+    #Helper function to determine what to write to the control panel and where for consumable items
+    def determine_panel_award_write(self, item_award_id):
+        panel_adr = None; panel_id = 0
+        if item_award_id == 1 or item_award_id == 2:
+            panel_adr = FOOD_DETECT_ADR
+        elif item_award_id == 3:
+            panel_adr = ONEUP_DETECT_ADR
+        if item_award_id == 1:
+            panel_id = 3
+        elif item_award_id == 2 or item_award_id == 3:
+            panel_id = 2
+        return panel_adr, panel_id
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -181,10 +197,27 @@ class KirbyNIDLClient(BizHawkClient):
                         #Consumable Item; hit the item award control byte
                         if item_id_readable in [11,12,13,14]:
                             item_award_id = item_id_readable - 10 #1=drink, 2=tomato, 3=1up, 4=candy
+
+                            #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
+                            panel_adr, panel_id = self.determine_panel_award_write(item_award_id)
+                            
                             print(f'INFO: attempting to write consumable item id {item_award_id} to control panel')
-                            await bizhawk.write(
-                                ctx.bizhawk_ctx, [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
-                            )
+                            #check if the item award control byte is 0. If not, add the consumable to the conumable queue
+                            item_award_panelb = await bizhawk.read(ctx.bizhawk_ctx, [
+                                (ITEM_AWARD_ADR, 1, "IWRAM")       
+                            ])
+                            item_award_panel = int.from_bytes(item_award_panelb)
+                            if item_award_panel != 0:
+                                print(f'INFO: item to award sent to panel, sent item to consumable queue')
+                                self.consumable_queue.append(item_award_id)
+                            else:
+                                item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
+                                if panel_adr and panel_id:
+                                    item_award_writes.append((panel_adr,[panel_id],"IWRAM"))
+                                await bizhawk.write(
+                                    ctx.bizhawk_ctx,
+                                    item_award_writes
+                                )
                         #TODO: Door key or star rod; play the appropriate sound effect
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
@@ -200,7 +233,7 @@ class KirbyNIDLClient(BizHawkClient):
                                     del self.ow_wxy_to_locked_doors[k]
 
                     #Look at the number of star rod pieces and unlock the corresponding boss doors
-                    star_rod_pieces_received = sum(1 for i in ctx.item_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
+                    star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
                     boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
                     print(f'INFO: removing lock for following boss doors: {boss_doors_to_unlock}')
                     for k in list(self.ow_wxy_to_locked_doors.keys()):
@@ -213,6 +246,30 @@ class KirbyNIDLClient(BizHawkClient):
                     await bizhawk.write(
                         ctx.bizhawk_ctx, [(sync_adr, [self.sync_counter], "IWRAM")]
                     )
+
+            if self.consumable_queue != 0:
+                #Note this is duplicated code from the standard sync check
+                #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
+                panel_adr, panel_id = self.determine_panel_award_write(self.consumable_queue[0])
+
+                #check if the item award control byte is 0. If not, add the consumable to the conumable queue. 
+                print(f'INFO: attempting to award queued item {self.consumable_queue[0]}')
+                item_award_panelb = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (ITEM_AWARD_ADR, 1, "IWRAM")       
+                ])
+                item_award_panel = int.from_bytes(item_award_panelb)
+                if item_award_panel != 0:
+                    print(f'INFO: item to award already paneled, do nothing')
+                else:
+                    item_award_writes = [(ITEM_AWARD_ADR, self.consumable_queue[0], "IWRAM")]
+                    if panel_adr and panel_id:
+                        item_award_writes.append((panel_adr,[panel_id],"IWRAM"))
+                    await bizhawk.write(
+                        ctx.bizhawk_ctx,
+                        item_award_writes
+                    )
+                    self.consumable_queue = self.consumable_queue[1:]
+
                     
             
             #If a goal game is detected, send the level clear check. 
@@ -241,6 +298,7 @@ class KirbyNIDLClient(BizHawkClient):
                 
             #If an item pickup is detected, send the item check
             if screen_mod == 0x8:
+                sent_check = False
                 #TODO: abstract the repeated pattern of bizhawk.read + int.from_bytes into a function that can handle 1 or multiple var reads
                 #Note that we only need the trailing comma syntax
                 (food_detectedb, oneup_detectedb) = await bizhawk.read(ctx.bizhawk_ctx, [

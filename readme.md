@@ -27,6 +27,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run from sou
 - Items
     - Unlock Copy Abilities
     - Unlock minigames and other side doors (Museum, Arena, Warp Star Station, et)
+    - Vitality Upgrades
 
 ## Speculative Features
 

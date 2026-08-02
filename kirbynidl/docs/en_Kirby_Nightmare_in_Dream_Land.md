@@ -13,7 +13,7 @@ Kirby cannot obtain any copy abilities until that copy ability is unlocked via A
 
 Non-tangible items (door keys, ublocked abilities, Star Rod pieces) will play a specific sound effect when received. However, you must watch the AP tracker feed to know what was received (as well as what items were sent via checks). 
 
-## Options
+## Options (NOT YET IMPLEMENTED/SPECULATIVE)
 
 - `Lock Bonus Doors`:
     Locks all doors to minigames and other side areas (Arenas, Museums, Warp Star Stations) until the correponding key is obtained. Adds Bonus door keys to the item pool
