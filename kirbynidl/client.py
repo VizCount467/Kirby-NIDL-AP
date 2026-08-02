@@ -12,7 +12,10 @@ if TYPE_CHECKING:
 
 from .locations import LOCATION_NAME_TO_ID
 from .items import ITEM_NAME_TO_ID
-import copy
+import copy, logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 ###DATA - Abstract to other files LATER
 ##APWORLD STUFF
@@ -24,6 +27,7 @@ WLR_TO_LOCATION_NAME_SOLO = {
     (0,1,3) : "Vegetable Valley 2 - Tomato (Cave)",
     (0,1,5) : "Vegetable Valley 2 - 1up (Hidden Room)",
     (0,2,3) : "Vegetable Valley 3 - Tomato (Hotheads)",
+    (0,3,1) : "Vegetable Valley 4 - Pep Drink (Platform)",
     (0,3,3) : "Vegetable Valley 4 - 1up (Shotzos)"
 }
 #Table of door coordinates (XY of left block) (doors are 2x1 blocks) 
@@ -41,10 +45,10 @@ OW_WXY_TO_DOOR_NAME = {
     # (0,0xE,0x9) : 'Vegetable Valley Museum',
     # (0,0x1B,0x3) : 'Vegetable Valley Warp Station',
 }
-#Flesh out the above table with the right block of each door, and all possible surrounding blocks (including diagonals)
+#Flesh out the above table with the right block of each door, and many surrounding blocks (including diagonals)
 for k in list(OW_WXY_TO_DOOR_NAME.keys()):
-    for dx in [-1,0,1,2]:
-        for dy in [-1,0,1]:
+    for dx in [-3,-2,-1,0,1,2,3,4]:
+        for dy in [-3,-2,-1,0,1,2,3]:
             OW_WXY_TO_DOOR_NAME[(k[0], k[1]+dx, k[2]+dy)] = OW_WXY_TO_DOOR_NAME[k]
 
 #Table for item ID to name (since AP client sends ID's not names, it seems)
@@ -116,7 +120,7 @@ class KirbyNIDLClient(BizHawkClient):
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
-            print('INFO: Init KNIDL client validate_rom function')
+            logger.info('Init KNIDL client validate_rom function')
             # Check ROM name/patch version
             rom_name = ((await bizhawk.read(ctx.bizhawk_ctx, [(ROM_HEADER_ADR, 12, "ROM")]))[0]).decode("ascii")
             if not rom_name.endswith('KIRBY DX'):
@@ -134,7 +138,7 @@ class KirbyNIDLClient(BizHawkClient):
                 await ctx.send_msgs([
                             {"cmd": "Say", "text": "DEBUG: Recognized patched US Kirby NiDL ROM!"},
                         ])
-                print('INFO: KNIDL client recognized and validated rom')
+                logger.info('KNIDL client recognized and validated rom')
                 #Client Context Setup Stuff
                 ctx.game = self.game
                 ctx.items_handling = 0b011 # gets items from other worlds and OWN world
@@ -153,7 +157,7 @@ class KirbyNIDLClient(BizHawkClient):
                 (SCREEN_MOD_ADR,1, "IWRAM")       
             ])
             screen_mod = int.from_bytes(screen_modb)
-            #print(f'INFO: Screen mod is {screen_mod}')
+            #logging.debug(f'Screen mod is {screen_mod}')
 
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
             # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss) and A (Goal Game)
@@ -164,7 +168,7 @@ class KirbyNIDLClient(BizHawkClient):
             # For now, only set them for World 1
             # This strategy is a problem if savestates are used, but that's whatever for now
             if (not self.clear_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
-                print(f'INFO: Attempting to write clear flags to unlock all levels')
+                logger.info(f'Attempting to write clear flags to unlock all levels')
                 clear_flag_writes = []
                 for f in IW_CLEAR_FLAGS_W1:
                     clear_flag_writes.append((f, [0x2], "IWRAM"))
@@ -175,24 +179,25 @@ class KirbyNIDLClient(BizHawkClient):
             
             #while in a level or the OW, check to see if there are items to award
             if self.sync_counter != len(ctx.items_received) and (screen_mod == 0x5 or screen_mod == 0x8):
-                print(f'INFO: init item sync sequence. Current sync counter is {self.sync_counter}. Number of items received is {len(ctx.items_received)}')
+                logger.info(f'init item sync sequence. Current sync counter is {self.sync_counter}. Number of items received is {len(ctx.items_received)}')
                 file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (FILE_NUMBER_ADR, 1, "IWRAM")       
+                    (FILE_NUMBER_ADR, 1, "EWRAM")       
                 ])
                 file_number = int.from_bytes(file_numberb)
                 sync_adr = SYNC_ADR_BASE + file_number*0x100
                 sync_counterb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (sync_adr, 1, "IWRAM")       
+                    (sync_adr, 1, "EWRAM")       
                 ])
-                sync_counter = int.from_bytes(sync_counterb, "little")
+                self.sync_counter= int.from_bytes(sync_counterb, "little")
+                logger.info(f'Sync counter according to game RAM is {self.sync_counter}')
                 #sync counter doesn't match, award items
                 if self.sync_counter != len(ctx.items_received):
                     if self.sync_counter > len(ctx.items_received): #Case when sync counter is fresh (FF) or somehow greater than items received
                         self.sync_counter = 0
                     #Loop from latest sync counter to get new items
-                    for i in range(sync_counter, len(ctx.items_received)):
+                    for i in range(self.sync_counter, len(ctx.items_received)):
                         received_item = ctx.items_received[i]
-                        print(f'INFO: newly received item is {ITEM_ID_TO_NAME[received_item.item]}')
+                        logger.info(f'newly received item is {ITEM_ID_TO_NAME[received_item.item]}')
                         item_id_readable = received_item.item - KNIDL_BASE_ID 
                         #Consumable Item; hit the item award control byte
                         if item_id_readable in [11,12,13,14]:
@@ -201,14 +206,14 @@ class KirbyNIDLClient(BizHawkClient):
                             #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
                             panel_adr, panel_id = self.determine_panel_award_write(item_award_id)
                             
-                            print(f'INFO: attempting to write consumable item id {item_award_id} to control panel')
+                            logger.info(f'attempting to write consumable item id {item_award_id} to control panel')
                             #check if the item award control byte is 0. If not, add the consumable to the conumable queue
-                            item_award_panelb = await bizhawk.read(ctx.bizhawk_ctx, [
+                            item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
                                 (ITEM_AWARD_ADR, 1, "IWRAM")       
                             ])
                             item_award_panel = int.from_bytes(item_award_panelb)
                             if item_award_panel != 0:
-                                print(f'INFO: item to award sent to panel, sent item to consumable queue')
+                                logger.info(f'item to award sent to panel, sent item to consumable queue')
                                 self.consumable_queue.append(item_award_id)
                             else:
                                 item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
@@ -227,7 +232,7 @@ class KirbyNIDLClient(BizHawkClient):
                         received_item_name = ITEM_ID_TO_NAME[received_item.item]
                         if received_item_name.endswith('Key'):
                             #Remove the corresponding entry of the Key item from the list of locked doors
-                            print(f'INFO: removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
+                            logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
                             for k in list(self.ow_wxy_to_locked_doors.keys()):
                                 if self.ow_wxy_to_locked_doors[k] == received_item_name[:-4]:
                                     del self.ow_wxy_to_locked_doors[k]
@@ -235,31 +240,31 @@ class KirbyNIDLClient(BizHawkClient):
                     #Look at the number of star rod pieces and unlock the corresponding boss doors
                     star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
                     boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
-                    print(f'INFO: removing lock for following boss doors: {boss_doors_to_unlock}')
+                    logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
                     for k in list(self.ow_wxy_to_locked_doors.keys()):
                         if self.ow_wxy_to_locked_doors[k] in boss_doors_to_unlock:
                             del self.ow_wxy_to_locked_doors[k]
 
                     #Set the sync counter now that any needed items have been awarded
                     #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
-                    print(f'INFO: attempting to write new sync counter {self.sync_counter}')
+                    logger.info(f'attempting to write new sync counter {self.sync_counter}')
                     await bizhawk.write(
-                        ctx.bizhawk_ctx, [(sync_adr, [self.sync_counter], "IWRAM")]
+                        ctx.bizhawk_ctx, [(sync_adr, [self.sync_counter], "EWRAM")]
                     )
 
-            if self.consumable_queue != 0:
+            if len(self.consumable_queue) != 0:
                 #Note this is duplicated code from the standard sync check
                 #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
                 panel_adr, panel_id = self.determine_panel_award_write(self.consumable_queue[0])
 
                 #check if the item award control byte is 0. If not, add the consumable to the conumable queue. 
-                print(f'INFO: attempting to award queued item {self.consumable_queue[0]}')
-                item_award_panelb = await bizhawk.read(ctx.bizhawk_ctx, [
+                logger.info(f'attempting to award queued item {self.consumable_queue[0]}')
+                item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (ITEM_AWARD_ADR, 1, "IWRAM")       
                 ])
                 item_award_panel = int.from_bytes(item_award_panelb)
                 if item_award_panel != 0:
-                    print(f'INFO: item to award already paneled, do nothing')
+                    logger.debug(f'item to award already paneled, do nothing')
                 else:
                     item_award_writes = [(ITEM_AWARD_ADR, self.consumable_queue[0], "IWRAM")]
                     if panel_adr and panel_id:
@@ -276,18 +281,18 @@ class KirbyNIDLClient(BizHawkClient):
             #TODO: Not sure if it's fine to attempt the send the check when it's already checked, but this does not check for the location already being sent
             #A similar pattern will be followed for big switches (screen mod = 9)
             if screen_mod == 0xA and not self.detected_goal_game:
-                print(f'INFO: Begin Goal Game Check Sequence')
+                logger.info(f'Begin Goal Game Check Sequence')
                 self.detected_goal_game = True
                 (world_numb, level_numb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (OW_MOD_ADR, 1, "IWRAM"),   
                     (LEVEL_MOD_ADR, 1, "IWRAM"),     
                 ])
-                world_num = int.from_bytes(world_numb)
-                level_num = int.from_bytes(level_numb)
-                print(f'INFO: Detected World {world_num}, Level {level_num}')
+                world_num = int.from_bytes(world_numb) + 1 #+1 because World / Level 1 is readable ID 11X
+                level_num = int.from_bytes(level_numb) + 1
+                logger.info(f'Detected World {world_num}, Level {level_num}')
                 level_clear_loc_id = KNIDL_BASE_ID + world_num*100 + level_num*10
                 #For now, use the fact that level clear location ID's follow the pattern of WL0 + BASE
-                print(f'INFO: Attempting to send location id {level_clear_loc_id}')
+                logger.info(f'Attempting to send location id {level_clear_loc_id}')
                 await ctx.send_msgs([{
                         "cmd": "LocationChecks",
                         "locations": [level_clear_loc_id]
@@ -308,7 +313,7 @@ class KirbyNIDLClient(BizHawkClient):
                 food_detected = int.from_bytes(food_detectedb) 
                 oneup_detected = int.from_bytes(oneup_detectedb)
                 if food_detected == 0x1 or oneup_detected == 0x1:
-                    print(f'INFO: detected 1up or food pickup')
+                    logger.info(f'detected 1up or food pickup')
                     (world_numb, level_numb, room_numb, x_coordb, y_coordb) = await bizhawk.read(ctx.bizhawk_ctx, [
                         (OW_MOD_ADR, 1, "IWRAM"),   
                         (LEVEL_MOD_ADR, 1, "IWRAM"),
@@ -317,24 +322,23 @@ class KirbyNIDLClient(BizHawkClient):
                         (KIRBY_Y_ADR, 2, "IWRAM")   
                     ])
                     wlr = (int.from_bytes(world_numb,'little'), int.from_bytes(level_numb,'little'), int.from_bytes(room_numb,'little'))
-                    print(f'INFO: calculated WLR is {wlr}')
+                    logger.info(f'calculated WLR is {wlr}')
                     if wlr in WLR_TO_LOCATION_NAME_SOLO.keys():
                         loc_name = WLR_TO_LOCATION_NAME_SOLO[wlr]
-                        print(f'INFO: attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
+                        logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
                         await ctx.send_msgs([{
                             "cmd": "LocationChecks",
                             "locations": [LOCATION_NAME_TO_ID[loc_name]]
                         }])
-                        sent_check = True
+                    food_detected = 0; oneup_detected = 0
 
                     #else: TODO: do math on the coordiantes to get the location name, when that becomes necessary
 
                     #After sending the check, it's the client's responsibility to reset the byte
-                    if sent_check:
-                        print(f'INFO: Attempting to reset 1up and food triggers in control panel after sending pickup check')
-                        await bizhawk.write(
-                            ctx.bizhawk_ctx, [(FOOD_DETECT_ADR, [0], "IWRAM"),(ONEUP_DETECT_ADR, [0], "IWRAM")]
-                        )
+                    logger.info(f'Attempting to reset 1up and food triggers in control panel after sending pickup check')
+                    await bizhawk.write(
+                        ctx.bizhawk_ctx, [(FOOD_DETECT_ADR, [0], "IWRAM"),(ONEUP_DETECT_ADR, [0], "IWRAM")]
+                    )
             
             #If Kirby is in the OW, set the door lock control byte if we are near any doors
             if screen_mod == 0x5:
@@ -346,18 +350,18 @@ class KirbyNIDLClient(BizHawkClient):
                 world_num = int.from_bytes(world_numb,'little')
                 x_coord_round = int(int.from_bytes(x_coordb,'little')/16)
                 y_coord_round = int(int.from_bytes(y_coordb,'little')/16)
-                print(f"INFO: Client detecting Kirby in the OW Lobby (World {world_num}) with rounded coords {x_coord_round}, {y_coord_round}")
+                logger.debug(f"Client detecting Kirby in the OW Lobby (World {world_num}) with rounded coords {x_coord_round}, {y_coord_round}")
                 if not self.door_locked and \
                     (world_num,x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
                     self.door_locked = True
-                    print('INFO: attempting to lock door')
+                    logger.info('attempting to lock door')
                     await bizhawk.write(
                             ctx.bizhawk_ctx, [(DOOR_LOCK_ADR, [1], "IWRAM")]
                         )
                 elif self.door_locked and not \
                     (int.from_bytes(world_numb,'little'),x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
                     self.door_locked = False
-                    print('INFO: attempting to unlock door')
+                    logger.info('attempting to unlock door')
                     await bizhawk.write(
                             ctx.bizhawk_ctx, [(DOOR_LOCK_ADR, [0], "IWRAM")]
                         )

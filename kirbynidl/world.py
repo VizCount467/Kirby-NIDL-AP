@@ -72,7 +72,7 @@ class KirbyNIDLWorld(World):
             "lock_bonus_doors", "lock_copy_abilities", "randomize_pickups", "starting_vitality","max_vitality"
         )
 
-    #this function is not being called, even though it is in the mpadv apworld that this structure is based off of
+    #Is this function being called?
     def generate_output(self, output_directory: str) -> None:
         
         patch = rom.KirbyNIDLPatch(player=self.player, player_name=self.player_name)

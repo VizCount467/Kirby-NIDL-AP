@@ -20,7 +20,8 @@ LOCATION_TABLE_READABLE = {
     "Vegetable Valley 3 - Level Clear" : 130,
     "Vegetable Valley 3 - Tomato (Hotheads)" : 131,
     "Vegetable Valley 4 - Level Clear" : 140,
-    "Vegetable Valley 4 - 1up (Shotzos)" : 141,
+    "Vegetable Valley 4 - Pep Drink (Platform)" : 141,
+    "Vegetable Valley 4 - 1up (Shotzos)" : 142,
     "Vegetable Valley - Boss (Whispy Woods)" : 150
 }
 KNIDL_BASE_ID = 2742740

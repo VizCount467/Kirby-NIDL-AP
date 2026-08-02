@@ -1,6 +1,6 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by me, VizCount. This is currently a work in progress and is not close to being a fully function apworld. Feel free to watch my progress in the dev logs, or contact me on the Archieplago Discord sever.
+Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by me, VizCount. This is currently a work in progress and is not close to being a fully functional apworld. Feel free to watch my progress in updates to this readme file, or contact me on the Archieplago Discord sever.
 
 ## General Structure
 
@@ -8,7 +8,7 @@ All levels and doors are unlocked from the start, except for boss doors. You wil
 
 ## Installation
 
-Place the kirbynidl folder in your Archipelago worlds directory and run from source. You may also need to place a US Kirby Nightmare in Dreamland ROM in your main Archipelago directory with the correct name; I'm not sure I've figured out automatic ROM file selection and copying. Other than this, I can't guarantee anything else will work yet. 
+Place the kirbynidl folder in your Archipelago worlds directory and run AP from source. You may also need to place a US Kirby Nightmare in Dreamland ROM in your main Archipelago directory with the correct file name. As in, I'm not sure I've figured out automatic ROM file selection through system dialogue. Other than this, I can't guarantee any other setup will work yet. 
 
 ## Features Currently Implemented
 - Locations
@@ -37,10 +37,15 @@ Place the kirbynidl folder in your Archipelago worlds directory and run from sou
 - Items
     - Unlock individual levels
 
+- Kirby Palette changer (implemented in other randomizers of the game)
+- Level and/or World Shuffle (not sure where to even begin)
 
-## Known Bugs
+## Known Bugs and Issues
 
-- To be determined...
+- As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated
+- All awarded healing items heal for one point only (working on this!)
+- The life counter displays incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
+- It may be possible to enter a "locked" overworld door by using fast copy abilities (burning, wheel, hi-jump) - need to test this
 
 
 
