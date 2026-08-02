@@ -1,4 +1,4 @@
-# Mega Man Zero 3 Archipelago
+# Kirby Nightmare in Dream Land Archipelago
 
 Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by me, VizCount. This is currently a work in progress and is not close to being a fully function apworld. Feel free to watch my progress in the dev logs, or contact me on the Archieplago Discord sever.
 
