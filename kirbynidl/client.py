@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from .locations import LOCATION_NAME_TO_ID
 from .items import ITEM_NAME_TO_ID
-import copy, logging
+import copy, logging, time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -73,6 +73,7 @@ ROM_HEADER_ADR = 0x0A0 #As it is for all GBA games
 ##EWRAM ADDRESSES
 SYNC_ADR_BASE = 0xE6FC #+ 0x100n for file 2, file 3
 FILE_NUMBER_ADR = 0xB074 #Also the sound vs music variable in the sound test
+KIRBY_HP_EW_ADR = 0x5588
 ##IWRAM ADDRESSES
 SCREEN_MOD_ADR = 0x23D8 
 OW_MOD_ADR = 0x23B8
@@ -103,7 +104,11 @@ class KirbyNIDLClient(BizHawkClient):
         self.door_locked = False
         self.clear_flags_written = False
         self.sync_counter = 0
-        self.consumable_queue = []
+        self.item_queue = []
+        self.hp_bank = 0
+        self.kirby_max_hp = 6
+        self.hp_trickle_timestamp = 0
+        self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
 
     #Helper function to determine what to write to the control panel and where for consumable items
     def determine_panel_award_write(self, item_award_id):
@@ -188,42 +193,23 @@ class KirbyNIDLClient(BizHawkClient):
                 sync_counterb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (sync_adr, 1, "EWRAM")       
                 ])
-                self.sync_counter= int.from_bytes(sync_counterb, "little")
+                sync_counter_ingame = int.from_bytes(sync_counterb, "little")
                 logger.info(f'Sync counter according to game RAM is {self.sync_counter}')
+                if sync_counter_ingame <= self.sync_counter: #When the in-game (last registered) sync counter is less than the current items, give the items that were received since
+                    self.sync_counter = sync_counter_ingame
                 #sync counter doesn't match, award items
                 if self.sync_counter != len(ctx.items_received):
-                    if self.sync_counter > len(ctx.items_received): #Case when sync counter is fresh (FF) or somehow greater than items received
+                    if self.sync_counter > len(ctx.items_received): 
+                        logger.warning('sync counter is somehow greater than number of items received!')
                         self.sync_counter = 0
                     #Loop from latest sync counter to get new items
                     for i in range(self.sync_counter, len(ctx.items_received)):
                         received_item = ctx.items_received[i]
                         logger.info(f'newly received item is {ITEM_ID_TO_NAME[received_item.item]}')
                         item_id_readable = received_item.item - KNIDL_BASE_ID 
-                        #Consumable Item; hit the item award control byte
-                        if item_id_readable in [11,12,13,14]:
-                            item_award_id = item_id_readable - 10 #1=drink, 2=tomato, 3=1up, 4=candy
-
-                            #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
-                            panel_adr, panel_id = self.determine_panel_award_write(item_award_id)
-                            
-                            logger.info(f'attempting to write consumable item id {item_award_id} to control panel')
-                            #check if the item award control byte is 0. If not, add the consumable to the conumable queue
-                            item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                                (ITEM_AWARD_ADR, 1, "IWRAM")       
-                            ])
-                            item_award_panel = int.from_bytes(item_award_panelb)
-                            if item_award_panel != 0:
-                                logger.info(f'item to award sent to panel, sent item to consumable queue')
-                                self.consumable_queue.append(item_award_id)
-                            else:
-                                item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
-                                if panel_adr and panel_id:
-                                    item_award_writes.append((panel_adr,[panel_id],"IWRAM"))
-                                await bizhawk.write(
-                                    ctx.bizhawk_ctx,
-                                    item_award_writes
-                                )
-                        #TODO: Door key or star rod; play the appropriate sound effect
+                        self.item_queue.append(item_id_readable)
+                        logger.info(f'Added readable item id {item_id_readable} to item queue')
+                        logger.info(f'Item queue is {self.item_queue}')
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
 
@@ -252,30 +238,66 @@ class KirbyNIDLClient(BizHawkClient):
                         ctx.bizhawk_ctx, [(sync_adr, [self.sync_counter], "EWRAM")]
                     )
 
-            if len(self.consumable_queue) != 0:
-                #Note this is duplicated code from the standard sync check
-                #Determine what to write to the control panel so that AP-awarded items don't trigger a pickup check
-                panel_adr, panel_id = self.determine_panel_award_write(self.consumable_queue[0])
-
-                #check if the item award control byte is 0. If not, add the consumable to the conumable queue. 
-                logger.info(f'attempting to award queued item {self.consumable_queue[0]}')
+            #Handle the in-game effects of all items (mainly playing SFX)
+            #May need to put a delay timer on this
+            if len(self.item_queue) != 0:
+                #check if we're free to award the item (ie, in a gameplay state)
                 item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (ITEM_AWARD_ADR, 1, "IWRAM")       
                 ])
                 item_award_panel = int.from_bytes(item_award_panelb)
                 if item_award_panel != 0:
-                    logger.debug(f'item to award already paneled, do nothing')
-                else:
-                    item_award_writes = [(ITEM_AWARD_ADR, self.consumable_queue[0], "IWRAM")]
-                    if panel_adr and panel_id:
-                        item_award_writes.append((panel_adr,[panel_id],"IWRAM"))
-                    await bizhawk.write(
-                        ctx.bizhawk_ctx,
-                        item_award_writes
-                    )
-                    self.consumable_queue = self.consumable_queue[1:]
+                    logger.debug(f'Item to award already paneled, do nothing')
 
+                else:    
+                    #Calc id to put in the item award control panel address, if any
+                    current_item = self.item_queue[0] #This will be the readable item id
+                    if current_item == 13: #1up
+                        item_award_id = 3
+                    elif current_item == 14: #Candy
+                        item_award_id = 4
+                    elif current_item == 12: #Tomato
+                        #calc how many segments to add to the HP bank
+                        self.hp_bank += self.kirby_max_hp - 1 #TODO: calc this from vitality + vitality pieces when implemented
+                        logger.info(f'Added {self.kirby_max_hp - 1} HP to Bank')
+                        item_award_id = 2
+                    elif current_item == 11: #Pep Drink
+                        self.hp_bank += 2 #TODO: calc this from vitality + vitality pieces when implemented
+                        logger.info('Added 2 HP to Bank')
+                        item_award_id = 2
+                    elif current_item == 1: #Star Rod
+                        item_award_id = None
+
+                    if item_award_id:
+                        logger.info(f'attempting to award queued item {current_item}')
+                        item_award_writes = [(ITEM_AWARD_ADR, item_award_id, "IWRAM")]
+                        if current_item == 13:
+                            item_award_writes.append((ONEUP_DETECT_ADR,2,"IWRAM"))
+                        await bizhawk.write(
+                            ctx.bizhawk_ctx,
+                            item_award_writes
+                        )
+                    self.item_queue = self.item_queue[1:]
+
+            #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
+            if self.hp_bank > 0 and screen_mod == 0x8:
+                kirby_hpb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (KIRBY_HP_EW_ADR, 1, "EWRAM")       
+                ])
+                kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
+                now = time.time()
+                if kirby_hp < self.kirby_max_hp and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: #TODO: calc the upper limit from vitality when implemented (use previous calculation)
+                    logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
+                    await bizhawk.write(
+                        ctx.bizhawk_ctx, [
+                            (ITEM_AWARD_ADR, [1], "IWRAM"),
+                            (FOOD_DETECT_ADR, [2], "IWRAM") #second write to prevent awarded hp from triggering a pickup location check
+                        ]
+                    )
+                    self.hp_bank -= 1
+                    self.hp_trickle_timestamp = now
                     
+      
             
             #If a goal game is detected, send the level clear check. 
             #TODO: Not sure if it's fine to attempt the send the check when it's already checked, but this does not check for the location already being sent

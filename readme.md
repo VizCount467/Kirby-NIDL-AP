@@ -16,15 +16,18 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
     - Consumable item pickups (Pep Drinks, Maxim Tomatoes, and 1ups) (World 1 Only)
 - Items
     - Consumable Pickups (Pep Drinks, 1ups, Maxim Tomatoes, Invincibility Candy)
-    - "Star Rod Pece" (unlocks world Boss and next world)
+        - Health items are not awarded immediately, but added to a "Bank". HP is automatically restored from the bank as you take damage.
+        - Consumable items are single-use. If you quit and re-open the same save file on the same saved game, you will not receive items received during the last session(the HP bank also resets)
+    - "Star Rod Piece" (unlocks world Boss and next world)
 
 ## Features Planned To be Implemented
 - Locations
     - All level clears
     - All world boss clears
-    - All consumable items (besides Candy)
+    - All consumable items (Pep Drinks, 1ups, Maxim Tomatoes)
     - All Big Switches
 - Items
+    - The final victory Condition
     - Unlock Copy Abilities
     - Unlock minigames and other side doors (Museum, Arena, Warp Star Station, et)
     - Vitality Upgrades
@@ -39,13 +42,17 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin)
+- Enemy Ability Shuffle
 
 ## Known Bugs and Issues
 
 - As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated
-- All awarded healing items heal for one point only (working on this!)
 - The life counter displays incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
-- It may be possible to enter a "locked" overworld door by using fast copy abilities (burning, wheel, hi-jump) - need to test this
+- It may be possible to enter a "locked" overworld door by using fast copy abilities (wheel, hi-jump) - need to test this
+- When Kirby tries to open a "locked" door, the intended SFX does not play (minor issue)
 
+## Latest Updates
+
+- 8/3/26: Added "HP Bank" feature modeled off the Mega Man 2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
 
 
