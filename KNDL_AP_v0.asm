@@ -1,0 +1,350 @@
+;KNDL_AP_v0.asm
+;This patch applies custom code to do the following:
+;Check for doors locked/unlocked
+;Detect Items (1ups, tomatos and pep brews)
+;Apply Items
+;The intent is to use this patched ROM with a simplified, POC version of the KNDL client
+;STATUS: ???
+
+.gba
+.open "KNDL/KNDL_AP_v0.gba", 0x08000000
+
+; ============================
+;LABELS
+; ============================
+
+.definelabel FreeROM, 0x087E4000
+
+.definelabel DoorLockControlByte, 0x030078A0
+.definelabel FoodCollectControlByte, 0x030078A1 ;0 normally, 1 if an item was detected, 2/3 if the item was awarded by AP (don't do anything), 4 as meaningless intermediate
+.definelabel OneUpCollectControlByte, 0x030078A2 ;0 normally, 1 if an item was detected, 2 if the item was awarded by AP (don't do anything)
+.definelabel ItemAwardControlByte, 0x030078A8
+.definelabel HealCounter, 0x030078A9
+
+.definelabel ScreenModifier, 0x030023D8
+.definelabel Max_Health_EW, 0x02005580
+.definelabel Kirby_Health_EW, 0x02005588
+.definelabel LifeCounter_EW, 0x02007D48
+
+.definelabel Pos_Update_Hook_Start, 0x08026266
+.definelabel Kirby_Xpos_IW, 0x030023CC
+.definelabel Kirby_Ypos_IW, 0x03002388
+
+.definelabel Life_Change_Hook_Start, 0x08009E6A
+.definelabel Life_Change_Fun_End, 0x08009EAA
+
+.definelabel Tomato_Skip_Start, 0x080B42A2
+.definelabel Drink_Skip_Start, 0x080B4320
+.definelabel Feed_Me_Hook, 0x080408CC
+.definelabel FeedMeEpilogue, 0x080408DC
+.definelabel Iw_2490, 0x03002490
+.definelabel TomatoHealStart, 0x080B42A4 ;same as heal_tomato_start, just skipping a few steps
+.definelabel DrinkHealStart, 0x080B4322
+
+.definelabel Door_Handler_Hook, 0x08024E4C
+.definelabel DoorHandlerEnd, 0x08025008 
+.definelabel DoorHandlerStart, 0x08024E56 
+.definelabel DoorID, 0x02000030
+
+
+;All functions below end with bx rN, so set lr before calling them
+.definelabel Heal_Tomato_Start, 0x080B429C ;no input
+.definelabel Change_Lives_Start, 0x08009E60 ;r0 = lives to add (1). r1 = player number (0)
+.definelabel Make_Invincible_Start, 0x0803E1B8 ;r0 = player value to alter? (5). r1, r2 uncertain use, but should be 0
+.definelabel Change_Music_Start, 0x08003110 ;r0 = ID of music track (NOT the sound test Number)
+.definelabel Play_SFX_Start, 0x080031B8 ;r0 = Number of SFX in Sound test + 100
+
+; ============================
+;ROM HEADER REPLACEMENT FOR VALIDATION
+; ============================
+.org 0x080000A0
+.ascii "APR KIRBY DX"   ;APR - ArchiPelago Randomizer
+
+
+
+; ============================
+;HOOKS
+; ============================
+
+;Hook to all code that needs to run "every frame"
+.org Pos_Update_Hook_Start
+    ldr r2, =FreeROM_ClientCheck+1
+    bx r2
+    .pool 
+;The function we are totally replacing starts with the X position to update in r0, Y in r1
+;It has no push/pop usage except for a standard bx lr at the end, so keep track of lr
+
+;Hook from 1up Detection Routine
+.org Life_Change_Hook_Start
+    ldr r1, =FreeROM_1upDetect+1
+    bx r1
+    .pool 
+
+;Edit the tomato healing function to skip straight to the "Feed Me" function
+;This replaces assignment of the address 0x0300 2490 to r5, do that before returning 
+.org Tomato_Skip_Start
+    b 0x080B42E2
+
+;Edit the drink healing function to skip straight to the "Feed Me" function
+;This also replaces assignment of IW 2490 to r5
+;And also, don't touch r6, that stores the amount the drink will heal
+.org Drink_Skip_Start
+    b 0x080B4372
+
+;In the feed me function, hook the strange useless-seeming P1 block to go to Item detection routine
+.org Feed_Me_Hook
+    ldr r1, =FreeROM_FoodDetect+1
+    bx r1
+    .pool
+
+;Hook the door handler function at the moment it changes 0x0200 0030 to 0xFF
+.org Door_Handler_Hook
+    ;Need to ldr and use bx because it's too far for b. Also +1 to keep the interpreter in thumb mode, or something
+    ldr r2, =FreeROM_DoorLock+1 ;r2 should be doing nothing here
+    bx r2
+    .pool ; see note on .pool below
+
+
+
+; ============================
+; CUSTOM CODE
+; ============================
+.org FreeROM
+.area 0x4000 ;make it bigger if we need, I guess
+FreeROM_ClientCheck:
+    ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
+    push {r0, r1, lr} ;Store these from the original position update function
+    ldr r2, =ScreenModifier
+    ldrb r0,[r2]
+    cmp r0, #0x8
+    bne @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level, nothing happens
+    ldr r2, =ItemAwardControlByte
+    ldrb r0,[r2]
+    cmp r0, #0x0
+    beq @@MakeUp_and_Resume_OGFunction ;Control byte 0, do nothing
+
+    ;Clear the control byte
+    mov r1, #0x0
+    strb r1, [r2]
+
+    ;Switch block for each item case
+    cmp r0, #0x1
+    beq @@Finally_Call_Heal;Control byte 1 = 1 HP Segment
+    cmp r0, #0x2
+    beq @@Set_Heal_SFX ;Control byte 2 = Healing Item (added to bank, play SFX only)
+    cmp r0, #0x3
+    beq @@Change_Lives ;Control byte 3 = 1up
+    cmp r0, #0x4
+    beq @@Make_Invincible ;Control byte 4 = Candy
+    cmp r0, #0x5
+    beq @@Set_Star_Rod_SFX ;Control byte 5 = Star Rod
+
+@@Finally_Call_Heal:
+    mov r0, #0x1
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl). Though, I'm not entirely sure this callback ever gets called back
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1 ;Keep healing if the counter isn't 0 (assuming this is ever even called back)
+    mov lr, r1
+    ldr r3, =Heal_Tomato_Start+1 
+    bx r3
+
+@@Set_Heal_SFX:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Set r0 to correct SFX value
+    mov r0, #0x79
+    ;Call SFX function
+    b @@Call_Play_SFX
+
+@@Set_Star_Rod_SFX:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Set r0 to correct SFX value
+    mov r0, #0x87
+    ;Call SFX function
+    b @@Call_Play_SFX
+
+@@Call_Play_SFX:
+    add r0, #0x64
+    ldr r3, =Play_SFX_Start+1 
+    bx r3
+
+@@Change_Lives:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ;Note that because we are going to actually modify the life counter, this is not the same as other "pure SFX" items
+    ldr r1, =@@Change_Lives_Post_LifeSFX+1
+    mov lr, r1
+    ;Call SFX function with the 1up SFX
+    mov r0, #0x78
+    b @@Call_Play_SFX
+
+@@Change_Lives_Post_LifeSFX:
+    ;Put lr on the stack again because the last function "used up" our callback
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;prep and do the change lives function
+    mov r0, #0x1 ;lives to add = 1
+    mov r1, #0x0 ;player number = 0 (player 1)
+    ldr r3, =Change_Lives_Start+1 
+    bx r3 
+    b @@MakeUp_and_Resume_OGFunction
+
+@@Make_Invincible:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@Make_Invincible_Post_Music+1
+    mov lr, r1
+    ;Before calling the make invincible function, call the music change function to trigger the invincibility theme
+    mov r0, #0x13 ;Move ID of invincibility theme to r0
+    ldr r3, =Change_Music_Start+1 
+    bx r3
+@@Make_Invincible_Post_Music:
+    ;Put lr on the stack again because the last function "used up" our callback
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Prep and Do the Make Invincible Call 
+    mov r0, #0x5 ;which sub-function to call (5 as determined by debugging)
+    mov r1, #0x0 ;no clue 1 
+    mov r2, #0x0 ;...and no clue 2
+    ldr r3, =Make_Invincible_Start+1 
+    bx r3 
+    b @@MakeUp_and_Resume_OGFunction
+
+@@MakeUp_and_Resume_OGFunction:
+    pop {r0, r1} ;Get these back from the stack storage earlier
+    ;Update kirby X and Y position in IW from r0/r1 exactly how the OG function did it
+    ldr r2, =Kirby_Xpos_IW
+    strh r0, [r2]
+    ldr r0, =Kirby_Ypos_IW
+    strh r1, [r0]
+    pop {r0} ;this is the original lr. Note that you can't pop {lr}; this is an invalid instruction.
+    mov lr, r0
+    bx lr ;jump back to whatever called the OG function    
+
+    .pool ;pretty sure each block needs its own .pool
+
+FreeROM_1upDetect:
+    ;check if the lives to change value in r6 is negative
+    cmp r6, #0x1
+    bne @@MakeUp_and_Resume_OGFunction ;lives to change value is not 1, Kirby died (or a minigame award?). Resume OG function
+    ;check if kirby is in a level.
+    ldr r1, =ScreenModifier
+    ldrb r2,[r1]
+    cmp r2, #0x8
+    bne @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level. Resume OG function
+    ;check if control byte is 2 (life awarded by AP)
+    ldr r1, =OneUpCollectControlByte
+    ldrb r2,[r1]
+    cmp r2, #0x2
+    beq @@Life_Awarded_By_AP ;The life was awarded by AP. Set control byte to 0 and resume original function
+
+    ;final case: kirby collected a life in a level. Change the control byte (already in r1) to 1 to cue the client
+    mov r2, #0x1
+    strb r2, [r1]
+    ;now jump to the end of the life change function, hope r1-r3 don't matter
+    ldr r1, =Life_Change_Fun_End+1
+    bx r1
+
+@@Life_Awarded_By_AP:
+    ;Set control byte to 0 and resume original function
+    mov r2, #0x0
+    strb r2, [r1]
+    b @@MakeUp_and_Resume_OGFunction
+
+@@MakeUp_and_Resume_OGFunction: ;Note that it should be fine to reuse @@ labels between blocks, like this one
+    ;Load the EW life counter address to r1
+    ldr r1, =LifeCounter_EW
+    ;lsl the player number in r5 and store in r3
+    lsl r3, r5, #0x1
+    ;add r1 to r3 to get the offset player address and put it in r4
+    add r4, r3, r1
+    ;Load the value at the offset player address to r2
+    ldrh r2,[r4,#0x0]
+    ;add r6 to r2 to get the new life count
+    add r2, r2, r6
+    ;r1 should hopefully be fine to use for the jump-back address
+    ldr r1, =Life_Change_Hook_Start+10+1
+    bx r1
+
+    .pool
+
+FreeROM_FoodDetect:
+    ;Load the control byte to r0 and compare.
+    ldr r1, =FoodCollectControlByte
+    ldrb r0,[r1]
+    cmp r0, #0x0
+    beq @@Food_Eaten_In_Stage ;Case 0, CB is 0, food was eaten normally in a level
+    cmp r0, #0x2
+    beq @@Healing_Awarded_By_AP ;Case 1a, CB is 2, the heal function was triggered by AP
+    ;Final case, CB is 4 (or anything else). The Feed Me function was triggered by case 1a/1b
+    ;set cb to 0 and go to end of Feed Me function
+    mov r0, #0x0
+    strb r0, [r1]
+    b @@GoToFeedMeEpilogue
+
+@@Food_Eaten_In_Stage:
+    ;Set the control byte address in r1 to "1", cueing the client to record the check by Kirby's coordinates
+    mov r0, #0x1
+    strb r0, [r1]
+    b @@GoToFeedMeEpilogue
+
+@@Healing_Awarded_By_AP:
+    ;Set control byte to "0" No infinite loop where feed me will be re-triggered?
+    mov r0, #0x0
+    strb r0, [r1]
+    ;Set r5 to address IW 2490 to make up for the code we replaced
+    ldr r5, =Iw_2490
+    ;Go to start of the Tomato Healing function
+    ldr r1, =TomatoHealStart+1
+    bx r1
+
+@@GoToFeedMeEpilogue:
+    ;Jump back to the Feed Me function to resume normal function
+    ldr r1, =FeedMeEpilogue+1
+    bx r1
+
+    .pool
+
+FreeROM_DoorLock:
+    ;Fulfill the OG function: move r0 > r5 and r1 > r6
+    add r5,r0,#0x0
+    add r6,r1,#0x0
+
+    ;fulfill the OG function: write 0xFF to the door id address
+    ldr r1, =DoorID
+    mov r0,#0xFF
+    strb r0,[r1]
+
+    ;fulfill the OG function: set r2 to 0 just in case
+    mov r2,#0x0
+
+    ;Load the control byte to r0 and compare.
+    ldr r1, =DoorLockControlByte
+    ldrb r0,[r1]
+    cmp r0,#0x0
+    beq @@GoToDoorHandlerStart  ;if 0 (door unlocked), go back to OG function.
+
+    ;Play a SFX if the door is locked to cue the player
+    ldr r1, =@@Continue_Post_LockSFX+1
+    mov lr, r1
+    ;Call SFX function with a certain SFX that sounds like banging on a door I guess
+    ldr r0, =0x183
+    add r0, #0x64
+    ldr r3, =Play_SFX_Start+1 
+    bx r3
+@@Continue_Post_LockSFX:
+    mov r0,#0x0 ;If 1, set r0 to 0 (door handler output) and jump to the end of the door handler function
+    ldr r1, =DoorHandlerEnd+1 ;+1, see note above
+    bx r1
+
+@@GoToDoorHandlerStart:
+    ldr r1, =DoorHandlerStart+1
+    bx r1
+
+    ;this .pool instruction is required to correctly parse the ldr instructions when the value is 32 bits 
+    ;(normally instructions are 16 bits)
+    .pool 
+
+.endarea
+
+.close

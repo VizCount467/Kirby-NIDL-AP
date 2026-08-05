@@ -9,7 +9,7 @@
 
 ## How to play
 
-For current in-progress build: Run Archipelago from Source. If not prompted, add a US Kirby Nightmare in Dream Land ROM to the Archipelago directory
+For current in-progress build: Run Archipelago from Source, add Kirby Nightmare in Dream Land ROM to the Archipelago directory if not prompted
 
 ## Switching Rooms
 

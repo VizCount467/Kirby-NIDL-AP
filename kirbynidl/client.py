@@ -75,6 +75,7 @@ SYNC_ADR_BASE = 0xE6FC #+ 0x100n for file 2, file 3
 FILE_NUMBER_ADR = 0xB074 #Also the sound vs music variable in the sound test
 KIRBY_HP_EW_ADR = 0x5588
 ##IWRAM ADDRESSES
+BGM_ID_ADR = 0x0490
 SCREEN_MOD_ADR = 0x23D8 
 OW_MOD_ADR = 0x23B8
 LEVEL_MOD_ADR = 0x1F20
@@ -109,19 +110,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.kirby_max_hp = 6
         self.hp_trickle_timestamp = 0
         self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
-
-    #Helper function to determine what to write to the control panel and where for consumable items
-    def determine_panel_award_write(self, item_award_id):
-        panel_adr = None; panel_id = 0
-        if item_award_id == 1 or item_award_id == 2:
-            panel_adr = FOOD_DETECT_ADR
-        elif item_award_id == 3:
-            panel_adr = ONEUP_DETECT_ADR
-        if item_award_id == 1:
-            panel_id = 3
-        elif item_award_id == 2 or item_award_id == 3:
-            panel_id = 2
-        return panel_adr, panel_id
+        self.sent_boss_check = False
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -241,7 +230,7 @@ class KirbyNIDLClient(BizHawkClient):
             #Handle the in-game effects of all items (mainly playing SFX)
             #May need to put a delay timer on this
             if len(self.item_queue) != 0:
-                #check if we're free to award the item (ie, in a gameplay state)
+                #check if we're free to award the item
                 item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (ITEM_AWARD_ADR, 1, "IWRAM")       
                 ])
@@ -252,6 +241,7 @@ class KirbyNIDLClient(BizHawkClient):
                 else:    
                     #Calc id to put in the item award control panel address, if any
                     current_item = self.item_queue[0] #This will be the readable item id
+                    item_award_id = 0
                     if current_item == 13: #1up
                         item_award_id = 3
                     elif current_item == 14: #Candy
@@ -266,18 +256,19 @@ class KirbyNIDLClient(BizHawkClient):
                         logger.info('Added 2 HP to Bank')
                         item_award_id = 2
                     elif current_item == 1: #Star Rod
-                        item_award_id = None
+                        item_award_id = 5
 
                     if item_award_id:
                         logger.info(f'attempting to award queued item {current_item}')
                         item_award_writes = [(ITEM_AWARD_ADR, item_award_id, "IWRAM")]
                         if current_item == 13:
                             item_award_writes.append((ONEUP_DETECT_ADR,2,"IWRAM"))
+                        logger.info(f'Item award writes is {item_award_writes}')
                         await bizhawk.write(
                             ctx.bizhawk_ctx,
                             item_award_writes
                         )
-                    self.item_queue = self.item_queue[1:]
+                        self.item_queue = self.item_queue[1:]
 
             #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
             if self.hp_bank > 0 and screen_mod == 0x8:
@@ -319,21 +310,26 @@ class KirbyNIDLClient(BizHawkClient):
                         "cmd": "LocationChecks",
                         "locations": [level_clear_loc_id]
                     }])
+            #Reset various "send check only once" switches once we're out of their screen mod context
             if not screen_mod == 0xA:
                 self.detected_goal_game = False
+            if not screen_mod == 0x8:
+                self.sent_boss_check = False
 
                 
-            #If an item pickup is detected, send the item check
+            #In-Level Checks
             if screen_mod == 0x8:
-                sent_check = False
+                #If an item pickup is detected, send the item check
                 #TODO: abstract the repeated pattern of bizhawk.read + int.from_bytes into a function that can handle 1 or multiple var reads
                 #Note that we only need the trailing comma syntax
-                (food_detectedb, oneup_detectedb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                (food_detectedb, oneup_detectedb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (FOOD_DETECT_ADR, 1, "IWRAM"),   
-                    (ONEUP_DETECT_ADR, 1, "IWRAM"),     
+                    (ONEUP_DETECT_ADR, 1, "IWRAM"),
+                    (BGM_ID_ADR, 1, "IWRAM")     
                 ])
                 food_detected = int.from_bytes(food_detectedb) 
                 oneup_detected = int.from_bytes(oneup_detectedb)
+                bgm_id = int.from_bytes(bgm_idb)
                 if food_detected == 0x1 or oneup_detected == 0x1:
                     logger.info(f'detected 1up or food pickup')
                     (world_numb, level_numb, room_numb, x_coordb, y_coordb) = await bizhawk.read(ctx.bizhawk_ctx, [
@@ -361,6 +357,23 @@ class KirbyNIDLClient(BizHawkClient):
                     await bizhawk.write(
                         ctx.bizhawk_ctx, [(FOOD_DETECT_ADR, [0], "IWRAM"),(ONEUP_DETECT_ADR, [0], "IWRAM")]
                     )
+                if bgm_id == 0x0D and not self.sent_boss_check: #0x0D = Kirby Dance 
+                    logger.info('Detected Kirby Dance')
+                    world_numb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                        (OW_MOD_ADR, 1, "IWRAM")       
+                    ])
+                    world_num = int.from_bytes(world_numb) + 1
+                    loc_id = int(KNIDL_BASE_ID + world_num*100 + 99)
+                    logger.info(f'Attempting to send location ID {loc_id}, Boss check from World {world_num}')
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": [loc_id]
+                    }])
+                    self.sent_boss_check = True
+
+
+
+
             
             #If Kirby is in the OW, set the door lock control byte if we are near any doors
             if screen_mod == 0x5:

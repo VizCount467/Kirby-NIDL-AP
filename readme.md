@@ -14,6 +14,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - Locations
     - Clearing a Level (World 1 Only)
     - Consumable item pickups (Pep Drinks, Maxim Tomatoes, and 1ups) (World 1 Only)
+    - Defeating a Boss (World 1 Only)
 - Items
     - Consumable Pickups (Pep Drinks, 1ups, Maxim Tomatoes, Invincibility Candy)
         - Health items are not awarded immediately, but added to a "Bank". HP is automatically restored from the bank as you take damage.
@@ -50,9 +51,11 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - The life counter displays incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
 - It may be possible to enter a "locked" overworld door by using fast copy abilities (wheel, hi-jump) - need to test this
 - When Kirby tries to open a "locked" door, the intended SFX does not play (minor issue)
+- When Kirby receives a Star Rod Piece item, the intended SFX does not play (ID may be too high? Same as above?)
 
 ## Latest Updates
 
 - 8/3/26: Added "HP Bank" feature modeled off the Mega Man 2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
+- 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece. Somehow messed up all item awards except for health?
 
 

@@ -8,9 +8,12 @@ if TYPE_CHECKING:
 from BaseClasses import ItemClassification, Location
 from . import items
 
-# Every location must have a unique integer ID associated with it (no need to be sequential)
-# Common practice seems to be to pick a unique base number and offset from there
-# For my Kirby NIDL, Let's use 3 digits, first for world, second for level, third sequential
+#Every location must have a unique integer ID associated with it (no need to be sequential)
+#Common practice seems to be to pick a unique base number and offset from there
+#For my Kirby NIDL, Let's use 3 digits, first for world, second for level, third sequential
+#The level clear will always be XX0, and items in the level XX(+n)
+#Boss level checks will always be X99 for convenient calculation, even if technically the boss level is just the next sequential level (ie, level 5 in W1)
+#Something similar can be done for Arena or Minigame checks, if those ever happen
 LOCATION_TABLE_READABLE = {
     "Vegetable Valley 1 - Level Clear" : 110,
     "Vegetable Valley 1 - Tomato (Waterfall)" : 111,
@@ -22,7 +25,7 @@ LOCATION_TABLE_READABLE = {
     "Vegetable Valley 4 - Level Clear" : 140,
     "Vegetable Valley 4 - Pep Drink (Platform)" : 141,
     "Vegetable Valley 4 - 1up (Shotzos)" : 142,
-    "Vegetable Valley - Boss (Whispy Woods)" : 150
+    "Vegetable Valley - Boss (Whispy Woods)" : 199
 }
 KNIDL_BASE_ID = 2742740
 LOCATION_NAME_TO_ID = {
