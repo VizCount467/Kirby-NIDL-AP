@@ -260,9 +260,9 @@ class KirbyNIDLClient(BizHawkClient):
 
                     if item_award_id:
                         logger.info(f'attempting to award queued item {current_item}')
-                        item_award_writes = [(ITEM_AWARD_ADR, item_award_id, "IWRAM")]
+                        item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
                         if current_item == 13:
-                            item_award_writes.append((ONEUP_DETECT_ADR,2,"IWRAM"))
+                            item_award_writes.append((ONEUP_DETECT_ADR,[2],"IWRAM"))
                         logger.info(f'Item award writes is {item_award_writes}')
                         await bizhawk.write(
                             ctx.bizhawk_ctx,

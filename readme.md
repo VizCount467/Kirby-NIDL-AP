@@ -56,6 +56,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 ## Latest Updates
 
 - 8/3/26: Added "HP Bank" feature modeled off the Mega Man 2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
-- 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece. Somehow messed up all item awards except for health?
+- 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece.
 
 
