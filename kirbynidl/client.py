@@ -20,6 +20,7 @@ logger.setLevel(logging.INFO)
 ###DATA - Abstract to other files LATER
 ##APWORLD STUFF
 KNIDL_BASE_ID = 2742740
+KIRBY_BASE_HP = 3
 #Table for items that are alone in their rooms and can be mapped to a single location from WLR alone
 #For multi-items rooms, will make a separate data table later from the master data source and do something more involved
 WLR_TO_LOCATION_NAME_SOLO = {
@@ -74,6 +75,7 @@ ROM_HEADER_ADR = 0x0A0 #As it is for all GBA games
 SYNC_ADR_BASE = 0xE6FC #+ 0x100n for file 2, file 3
 FILE_NUMBER_ADR = 0xB074 #Also the sound vs music variable in the sound test
 KIRBY_HP_EW_ADR = 0x5588
+KIRBY_MAX_HP_ADR = 0x5580
 ##IWRAM ADDRESSES
 BGM_ID_ADR = 0x0490
 SCREEN_MOD_ADR = 0x23D8 
@@ -83,6 +85,7 @@ ROOM_MOD_ADR = 0x2468
 IW_CLEAR_FLAGS_W1 = [0x2400,0x2401,0x2402,0x2403]
 KIRBY_X_ADR = 0x23CC
 KIRBY_Y_ADR = 0x2388
+MOUTH_ADR = 0x217B
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
 FOOD_DETECT_ADR = 0x78A1
@@ -103,14 +106,15 @@ class KirbyNIDLClient(BizHawkClient):
         self.detected_goal_game = False #flag to prevent repeated send of level clear check during a goal game
         self.ow_wxy_to_locked_doors = copy.copy(OW_WXY_TO_DOOR_NAME)
         self.door_locked = False
-        self.clear_flags_written = False
+        self.initial_flags_written = False
         self.sync_counter = 0
         self.item_queue = []
         self.hp_bank = 0
-        self.kirby_max_hp = 6
+        self.kirby_max_hp = KIRBY_BASE_HP
         self.hp_trickle_timestamp = 0
         self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
         self.sent_boss_check = False
+        self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -154,14 +158,16 @@ class KirbyNIDLClient(BizHawkClient):
             #logging.debug(f'Screen mod is {screen_mod}')
 
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
-            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss) and A (Goal Game)
-            if not screen_mod in (0x5,0x7,0x8,0xA):
+            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), A (Goal Game)
+            # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
+            if not screen_mod in (0x5,0x7,0x8,0xA,0x12,0x13):
                 return
             
             #During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
             # For now, only set them for World 1
+            # Also set Kirby's max vitality here too
             # This strategy is a problem if savestates are used, but that's whatever for now
-            if (not self.clear_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
+            if (not self.initial_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
                 logger.info(f'Attempting to write clear flags to unlock all levels')
                 clear_flag_writes = []
                 for f in IW_CLEAR_FLAGS_W1:
@@ -169,7 +175,28 @@ class KirbyNIDLClient(BizHawkClient):
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
-                self.clear_flags_written = True
+                logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} segments (initial flag setting)")
+                hp_val = int(self.kirby_max_hp*8)
+                await bizhawk.write(ctx.bizhawk_ctx, 
+                    [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
+                     (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
+                     ]
+                )
+                self.initial_flags_written = True
+
+            # Ability Lock: if Kirby is in a gameplay state, always be checking his "Mouth" value. 
+            # If the mouth contains a locked ability, set the Mouth to 0
+            if screen_mod in (0x5,0x8,0x12,0x13):
+                mouth_idb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (MOUTH_ADR, 1, "IWRAM")       
+                ])
+                mouth_id = int.from_bytes(mouth_idb)
+                if mouth_id in self.locked_ability_ids:
+                    logger.info(f'Locked mouth id {mouth_id} detected, setting mouth to 0')
+                    await bizhawk.write(
+                        ctx.bizhawk_ctx, [(MOUTH_ADR, [0], "IWRAM")]
+                    )
+
             
             #while in a level or the OW, check to see if there are items to award
             if self.sync_counter != len(ctx.items_received) and (screen_mod == 0x5 or screen_mod == 0x8):
@@ -202,15 +229,37 @@ class KirbyNIDLClient(BizHawkClient):
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
 
-                    #Loop through all items to check for door key items
+                    #Loop through all items to check for door key, ability unlock items, and vitality upgrades
                     for received_item in ctx.items_received:
                         received_item_name = ITEM_ID_TO_NAME[received_item.item]
+                        received_item_id_readable = received_item.item - KNIDL_BASE_ID
+
                         if received_item_name.endswith('Key'):
                             #Remove the corresponding entry of the Key item from the list of locked doors
                             logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
                             for k in list(self.ow_wxy_to_locked_doors.keys()):
                                 if self.ow_wxy_to_locked_doors[k] == received_item_name[:-4]:
                                     del self.ow_wxy_to_locked_doors[k]
+
+                        if received_item_id_readable > 50 and received_item_id_readable < 75:
+                            ability_id = received_item_id_readable - 50
+                            logger.info(f'removing lock for Copy Ability {ITEM_ID_TO_NAME[received_item.item]}, ability id {ability_id}')
+                            if ability_id in self.locked_ability_ids:
+                                self.locked_ability_ids.remove(ability_id)
+
+                    #Set kirby's max hp based off the number of vitality items
+                    extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
+                    new_kirby_max_hp = KIRBY_BASE_HP + extra_hp
+                    if new_kirby_max_hp != self.kirby_max_hp:
+                        self.kirby_max_hp = new_kirby_max_hp
+                        logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} (vitality recalculation)")
+                        hp_val = int(self.kirby_max_hp*8)
+                        await bizhawk.write(ctx.bizhawk_ctx, 
+                            [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
+                            (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
+                            ]
+                        )
+
 
                     #Look at the number of star rod pieces and unlock the corresponding boss doors
                     star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
@@ -257,13 +306,16 @@ class KirbyNIDLClient(BizHawkClient):
                         item_award_id = 2
                     elif current_item == 1: #Star Rod
                         item_award_id = 5
+                    elif current_item > 50 and current_item < 75: #Ability unlock
+                        item_award_id = 6
+                    elif current_item == 5: #Vitality
+                        item_award_id = 7
 
                     if item_award_id:
                         logger.info(f'attempting to award queued item {current_item}')
                         item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
                         if current_item == 13:
                             item_award_writes.append((ONEUP_DETECT_ADR,[2],"IWRAM"))
-                        logger.info(f'Item award writes is {item_award_writes}')
                         await bizhawk.write(
                             ctx.bizhawk_ctx,
                             item_award_writes
@@ -370,8 +422,6 @@ class KirbyNIDLClient(BizHawkClient):
                         "locations": [loc_id]
                     }])
                     self.sent_boss_check = True
-
-
 
 
             

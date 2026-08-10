@@ -21,11 +21,14 @@ ITEM_TABLE_READABLE = {
     ##Abilities: Format 2XX, where XX is ID in client script
     ##Misc
     'Star Rod Piece' : 1,
+    'Vitality' : 5,
     ##Filler pickup items: Format 1X, where X is ID in client script
     'Pep Drink' : 11,
     'Maxim Tomato' : 12,
     '1up' : 13,
-    'Invincibility Candy' : 14
+    'Invincibility Candy' : 14,
+    ##Ability Unlocks. Format 50 + XX, where XX is the in-RAM ability id. 
+    'Sword' : 54
 }
 KNIDL_BASE_ID = 2742740
 ITEM_NAME_TO_ID = {
@@ -53,18 +56,20 @@ def get_random_filler_item_name(world: KirbyNIDLWorld) -> str:
 
 # Our world class must have a create_item() function that can create any of our items FROM NAME at any time.
 # So, we make this helper function that creates the item by name with the correct classification.
-# As in APQuest it's probably to have it in its own function over here in items.py.
+# As in APQuest it's good to have it in its own function over here in items.py.
 def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
     #Decide on the correct classification (this will probably be neater and more systematic later)
+    #For now, there are only 4 possible filler items. Star Rod, ability unlocks are progression
+    #Vitality upgrades are useful, side door unlocks filler
     classification = None
-    if 'Level Key' in name:
-        classification = ItemClassification.progression
     if name in Filler_Items:
         classification = ItemClassification.filler
-    if name == 'Star Rod Piece':
+    elif name == 'Vitality':
+        classification = ItemClassification.useful
+    else:
         classification = ItemClassification.progression
     #note that you can assign two classifications at once with "|" like this, useful in logic (mainly useful + prog or useful + filler)
-    #In Kirby NIDL, all abilities will be useful, most but not all will also be prog
+    #In Kirby NIDL, all abilities will be useful, but technically not all will be prog. All will be marked prog anyway
     ##classification = ItemClassification.progression | ItemClassification.useful
     
     return KirbyNIDLItem(name, classification, ITEM_NAME_TO_ID[name], world.player)
@@ -77,7 +82,7 @@ def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
 def create_all_items(world: KirbyNIDLWorld) -> None:
     # Creating items should generally be done via the world's create_item method.
     # First, create a list containing all the items that always exist (depending on options (later))
-    #For now, this is the 4 door keys and the star rod piece
+    #For now, this is 1 star rod piece, 1 copy ability (sword), 1 Vitality
     #Eventually, do this via the master item structure
     itempool: list[Item] = [
         ##No Keys at the moment, maybe no keys ever
@@ -86,11 +91,13 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
         # world.create_item("Vegetable Valley 3 Level Key"),
         # world.create_item("Vegetable Valley 4 Level Key"),
         world.create_item("Star Rod Piece"),
+        world.create_item("Sword"),
+        world.create_item("Vitality")
     ]
 
     #Now find how much filler to place
     #First use this handy helper function (note that since no locations are filled yet, this is all the fillable locations)
-    #You could also do len(world.get_locations()), but this would include the "Fake" even locations
+    #You could also do len(world.get_locations()), but this would include the "Fake" event locations
     n_locs = len(world.multiworld.get_unfilled_locations(world.player))
     n_filler = n_locs - len(itempool)
 

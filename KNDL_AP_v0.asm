@@ -138,6 +138,11 @@ FreeROM_ClientCheck:
     beq @@Make_Invincible ;Control byte 4 = Candy
     cmp r0, #0x5
     beq @@Set_Star_Rod_SFX ;Control byte 5 = Star Rod
+    cmp r0, #0x6
+    beq @@Set_Ability_SFX ;Control byte 6 = Copy Ability Unlock
+    cmp r0, #0x7
+    beq @@Set_Vitality_SFX ;Control byte 7 = Vitality Unlock
+
 
 @@Finally_Call_Heal:
     mov r0, #0x1
@@ -162,6 +167,24 @@ FreeROM_ClientCheck:
     mov lr, r1
     ;Set r0 to correct SFX value
     mov r0, #0x87
+    ;Call SFX function
+    b @@Call_Play_SFX
+
+@@Set_Ability_SFX:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Set r0 to correct SFX value
+    mov r0, #0x08
+    ;Call SFX function
+    b @@Call_Play_SFX
+
+@@Set_Vitality_SFX:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Set r0 to correct SFX value
+    mov r0, #0x84
     ;Call SFX function
     b @@Call_Play_SFX
 
@@ -312,7 +335,7 @@ FreeROM_DoorLock:
 
     ;fulfill the OG function: write 0xFF to the door id address
     ldr r1, =DoorID
-    mov r0,#0xFF
+    mov r0, #0xFF
     strb r0,[r1]
 
     ;fulfill the OG function: set r2 to 0 just in case
@@ -328,7 +351,7 @@ FreeROM_DoorLock:
     ldr r1, =@@Continue_Post_LockSFX+1
     mov lr, r1
     ;Call SFX function with a certain SFX that sounds like banging on a door I guess
-    ldr r0, =0x183
+    mov r0, #0x89
     add r0, #0x64
     ldr r3, =Play_SFX_Start+1 
     bx r3
