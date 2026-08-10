@@ -54,6 +54,9 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - When Kirby tries to open a "locked" door, the intended SFX plays EVERY FRAME (will resolve soon)
 - The Item Sync Counter may not be stored in saveRAM as intended, leading to all received items being awarded on startup. 
 - Invinciblity Candy will trigger location checks because it uses the "Feed Me" function. The client needs to be designed with awareness of these non-locations
+- When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
+- The interaction of the client-dependent ability locking with the mix roulette is still unknown -- may need to nullify mixes entirely
+- The interaction of savestates and the various client-dependent game interactions is completely unknown (minor?)
 
 ## Latest Updates
 
