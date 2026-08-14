@@ -16,8 +16,6 @@
 .definelabel FreeROM, 0x087E4000
 
 .definelabel DoorLockControlByte, 0x030078A0
-.definelabel FoodCollectControlByte, 0x030078A1 ;0 normally, 1 if an item was detected, 2/3 if the item was awarded by AP (don't do anything), 4 as meaningless intermediate
-.definelabel OneUpCollectControlByte, 0x030078A2 ;0 normally, 1 if an item was detected, 2 if the item was awarded by AP (don't do anything)
 .definelabel DoorLockSFXControl, 0x030078A3
 .definelabel ItemAwardControlByte, 0x030078A8
 .definelabel HealCounter, 0x030078A9
@@ -34,13 +32,8 @@
 .definelabel Life_Change_Hook_Start, 0x08009E6A
 .definelabel Life_Change_Fun_End, 0x08009EAA
 
-.definelabel Tomato_Skip_Start, 0x080B42A2
-.definelabel Drink_Skip_Start, 0x080B4320
-.definelabel Feed_Me_Hook, 0x080408CC
-.definelabel FeedMeEpilogue, 0x080408DC
-.definelabel Iw_2490, 0x03002490
-.definelabel TomatoHealStart, 0x080B42A4 ;same as heal_tomato_start, just skipping a few steps
-.definelabel DrinkHealStart, 0x080B4322
+.definelabel Pickup_Handler_Skip_Start, 0x0806A16E
+.definelabel Pickup_Handler_Skip_End, 0x0806A250
 
 .definelabel Door_Handler_Hook, 0x08024E4C
 .definelabel DoorHandlerEnd, 0x08025008 
@@ -75,28 +68,10 @@
 ;The function we are totally replacing starts with the X position to update in r0, Y in r1
 ;It has no push/pop usage except for a standard bx lr at the end, so keep track of lr
 
-;Hook from 1up Detection Routine
-.org Life_Change_Hook_Start
-    ldr r1, =FreeROM_1upDetect+1
-    bx r1
-    .pool 
-
-;Edit the tomato healing function to skip straight to the "Feed Me" function
-;This replaces assignment of the address 0x0300 2490 to r5, do that before returning 
-.org Tomato_Skip_Start
-    b 0x080B42E2
-
-;Edit the drink healing function to skip straight to the "Feed Me" function
-;This also replaces assignment of IW 2490 to r5
-;And also, don't touch r6, that stores the amount the drink will heal
-.org Drink_Skip_Start
-    b 0x080B4372
-
-;In the feed me function, hook the strange useless-seeming P1 block to go to Item detection routine
-.org Feed_Me_Hook
-    ldr r1, =FreeROM_FoodDetect+1
-    bx r1
-    .pool
+;Hook the puckup handler to skip all behaviour except setting the collection flag and unloading the entity (probably what the last function does...)
+;This disables the usual behavior of all pickup items, including the Arena rewards. Hence, Arenas now MUST be checks
+.org Pickup_Handler_Skip_Start
+    b Pickup_Handler_Skip_End
 
 ;Hook the door handler function at the moment it changes 0x0200 0030 to 0xFF
 .org Door_Handler_Hook
@@ -119,16 +94,21 @@ FreeROM_ClientCheck:
     ldr r2, =DoorLockSFXControl
     ldrb r0,[r2]
     cmp r0, #0x0 ;If the value is 0, do nothing. Else, decrement the value by 1. The SFX will only play again once the value is 0
-    beq @@Continue_Client_Check
+    beq @@Continue_Client_Check_1
     sub r0, r0, #1
     strb r0, [r2]
 
-@@Continue_Client_Check
+@@Continue_Client_Check_1:
     ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
     ldr r2, =ScreenModifier
     ldrb r0,[r2]
-    cmp r0, #0x8
-    bne @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level, nothing happens
+    cmp r0, #0x8 ;Normal level or Boss
+    beq @@Continue_Client_Check_2
+    cmp r0, #0x13 ;Arena
+    beq @@Continue_Client_Check_2
+    b @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level or arena, nothing happens
+
+@@Continue_Client_Check_2:
     ldr r2, =ItemAwardControlByte
     ldrb r0,[r2]
     cmp r0, #0x0
@@ -257,87 +237,6 @@ FreeROM_ClientCheck:
 
     .pool ;pretty sure each block needs its own .pool
 
-FreeROM_1upDetect:
-    ;check if the lives to change value in r6 is negative
-    cmp r6, #0x1
-    bne @@MakeUp_and_Resume_OGFunction ;lives to change value is not 1, Kirby died (or a minigame award?). Resume OG function
-    ;check if kirby is in a level.
-    ldr r1, =ScreenModifier
-    ldrb r2,[r1]
-    cmp r2, #0x8
-    bne @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level. Resume OG function
-    ;check if control byte is 2 (life awarded by AP)
-    ldr r1, =OneUpCollectControlByte
-    ldrb r2,[r1]
-    cmp r2, #0x2
-    beq @@Life_Awarded_By_AP ;The life was awarded by AP. Set control byte to 0 and resume original function
-
-    ;final case: kirby collected a life in a level. Change the control byte (already in r1) to 1 to cue the client
-    mov r2, #0x1
-    strb r2, [r1]
-    ;now jump to the end of the life change function, hope r1-r3 don't matter
-    ldr r1, =Life_Change_Fun_End+1
-    bx r1
-
-@@Life_Awarded_By_AP:
-    ;Set control byte to 0 and resume original function
-    mov r2, #0x0
-    strb r2, [r1]
-    b @@MakeUp_and_Resume_OGFunction
-
-@@MakeUp_and_Resume_OGFunction: ;Note that it should be fine to reuse @@ labels between blocks, like this one
-    ;Load the EW life counter address to r1
-    ldr r1, =LifeCounter_EW
-    ;lsl the player number in r5 and store in r3
-    lsl r3, r5, #0x1
-    ;add r1 to r3 to get the offset player address and put it in r4
-    add r4, r3, r1
-    ;Load the value at the offset player address to r2
-    ldrh r2,[r4,#0x0]
-    ;add r6 to r2 to get the new life count
-    add r2, r2, r6
-    ;r1 should hopefully be fine to use for the jump-back address
-    ldr r1, =Life_Change_Hook_Start+10+1
-    bx r1
-
-    .pool
-
-FreeROM_FoodDetect:
-    ;Load the control byte to r0 and compare.
-    ldr r1, =FoodCollectControlByte
-    ldrb r0,[r1]
-    cmp r0, #0x0
-    beq @@Food_Eaten_In_Stage ;Case 0, CB is 0, food was eaten normally in a level
-    cmp r0, #0x2
-    beq @@Healing_Awarded_By_AP ;Case 1a, CB is 2, the heal function was triggered by AP
-    ;Final case, CB is 4 (or anything else). The Feed Me function was triggered by case 1a/1b
-    ;set cb to 0 and go to end of Feed Me function
-    mov r0, #0x0
-    strb r0, [r1]
-    b @@GoToFeedMeEpilogue
-
-@@Food_Eaten_In_Stage:
-    ;Set the control byte address in r1 to "1", cueing the client to record the check by Kirby's coordinates
-    mov r0, #0x1
-    strb r0, [r1]
-    b @@GoToFeedMeEpilogue
-
-@@Healing_Awarded_By_AP:
-    ;Set control byte to "0" No infinite loop where feed me will be re-triggered?
-    mov r0, #0x0
-    strb r0, [r1]
-    ;Set r5 to address IW 2490 to make up for the code we replaced
-    ldr r5, =Iw_2490
-    ;Go to start of the Tomato Healing function
-    ldr r1, =TomatoHealStart+1
-    bx r1
-
-@@GoToFeedMeEpilogue:
-    ;Jump back to the Feed Me function to resume normal function
-    ldr r1, =FeedMeEpilogue+1
-    bx r1
-
-    .pool
 
 FreeROM_DoorLock:
     ;Fulfill the OG function: move r0 > r5 and r1 > r6

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from .locations import LOCATION_NAME_TO_ID
 from .items import ITEM_NAME_TO_ID
-import copy, logging, time, math
+import copy, logging, time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,24 +22,7 @@ logger.setLevel(logging.INFO)
 KNIDL_BASE_ID = 2742740
 KIRBY_BASE_HP = 3
 
-#Table for items that are alone in their rooms and can be mapped to a single location from WLR alone
-#The tuple represents World, Level and Room number, 0-indexed
-WLR_TO_LOCATION_NAME_SOLO = {
-    (0,0,2) : "Vegetable Valley 1 - Tomato (Waterfall)",
-    (0,1,3) : "Vegetable Valley 2 - Tomato (Cave)",
-    (0,1,5) : "Vegetable Valley 2 - 1up (Hidden Room)",
-    (0,2,3) : "Vegetable Valley 3 - Tomato (Hotheads)",
-    (0,3,1) : "Vegetable Valley 4 - Pep Drink (Platform)"
-}
 
-#Table for items that are NOT alone in their rooms and need additional XY coordinate info to track them
-#Same tuple logic as above, only each maps to a tuple of dicts that define the item XY along with its name
-WLR_TO_LOCATION_XY_NAME = {
-    (0,3,3): (
-        {'X':1,'Y':2,'Name': "Vegetable Valley 4 - Candy (Stump)"},
-        {'X':1,'Y':2,'Name': "Vegetable Valley 4 - 1up (Shotzos)"}
-    )
-}
 
 #Table of door coordinates (XY of left block) (doors are 2x1 blocks) 
 #If kirby is in front of the door blocks, the lock byte will be set. 
@@ -66,6 +49,11 @@ for k in list(OW_WXY_TO_DOOR_NAME.keys()):
 ITEM_ID_TO_NAME = dict()
 for k in ITEM_NAME_TO_ID.keys():
     ITEM_ID_TO_NAME[ITEM_NAME_TO_ID[k]] = k
+#Same for locations -- it's handy to have
+LOCATION_ID_TO_NAME = dict()
+for k in LOCATION_NAME_TO_ID.keys():
+    LOCATION_ID_TO_NAME[str(LOCATION_NAME_TO_ID[k])] = k
+
 
 #Helper Table that lists all the worlds in order. Can probably abstract this later
 WORLD_NAMES_INDEXED = [
@@ -86,6 +74,7 @@ SYNC_ADR_BASE = 0xE6FC #+ 0x100n for file 2, file 3
 FILE_NUMBER_ADR = 0xB074 #Also the sound vs music variable in the sound test
 KIRBY_HP_EW_ADR = 0x5588
 KIRBY_MAX_HP_ADR = 0x5580
+PICKUP_FLAG_ADR = 0x7BF0
 ##IWRAM ADDRESSES
 BGM_ID_ADR = 0x0490
 SCREEN_MOD_ADR = 0x23D8 
@@ -96,10 +85,9 @@ IW_CLEAR_FLAGS_W1 = [0x2400,0x2401,0x2402,0x2403]
 KIRBY_X_ADR = 0x23CC
 KIRBY_Y_ADR = 0x2388
 MOUTH_ADR = 0x217B
+BOSS_HP_ADR = 0x3A08
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
-FOOD_DETECT_ADR = 0x78A1
-ONEUP_DETECT_ADR = 0x78A2
 ITEM_AWARD_ADR = 0x78A8
 
 
@@ -123,8 +111,14 @@ class KirbyNIDLClient(BizHawkClient):
         self.kirby_max_hp = KIRBY_BASE_HP
         self.hp_trickle_timestamp = 0
         self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
+        self.current_world = -1 #indexed to 0, Vegetable Valley = 0
+        self.current_level = -1 #also indexed to 0
+        self.current_pickup_bitarr = 0
+        self.current_pickup_flag_adr = 0x7BF0
         self.sent_boss_check = False
         self.sent_bigswitch_check = False
+        self.prev_boss_hp = 0
+        self.sent_arena_check = False
         self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
@@ -204,13 +198,13 @@ class KirbyNIDLClient(BizHawkClient):
                 mouth_id = int.from_bytes(mouth_idb)
                 if mouth_id in self.locked_ability_ids:
                     logger.info(f'Locked mouth id {mouth_id} detected, setting mouth to 0')
-                    await bizhawk.write(
-                        ctx.bizhawk_ctx, [(MOUTH_ADR, [0], "IWRAM")]
+                    await bizhawk.write(ctx.bizhawk_ctx, 
+                                        [(MOUTH_ADR, [0], "IWRAM")]
                     )
 
             
             #while in a level or the OW, check to see if there are items to award
-            if self.sync_counter != len(ctx.items_received) and (screen_mod == 0x5 or screen_mod == 0x8):
+            if self.sync_counter != len(ctx.items_received) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
                 logger.info(f'init item sync sequence. Current sync counter is {self.sync_counter}. Number of items received is {len(ctx.items_received)}')
                 file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (FILE_NUMBER_ADR, 1, "EWRAM")       
@@ -283,8 +277,8 @@ class KirbyNIDLClient(BizHawkClient):
                     #Set the sync counter now that any needed items have been awarded
                     #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
                     logger.info(f'attempting to write new sync counter {self.sync_counter}')
-                    await bizhawk.write(
-                        ctx.bizhawk_ctx, [(sync_adr, [self.sync_counter], "EWRAM")]
+                    await bizhawk.write(ctx.bizhawk_ctx, 
+                        [(sync_adr, [self.sync_counter], "EWRAM")]
                     )
 
             #Handle the in-game effects of all items (mainly playing SFX)
@@ -312,8 +306,12 @@ class KirbyNIDLClient(BizHawkClient):
                         logger.info(f'Added {self.kirby_max_hp - 1} HP to Bank')
                         item_award_id = 2
                     elif current_item == 11: #Pep Drink
-                        self.hp_bank += 2 #TODO: calc this from vitality + vitality pieces when implemented
-                        logger.info('Added 2 HP to Bank')
+                        if self.kirby_max_hp <= 3:
+                            hp = 1
+                        else:
+                            hp = 2
+                        self.hp_bank += hp
+                        logger.info(f'Added {hp} HP to Bank')
                         item_award_id = 2
                     elif current_item == 1: #Star Rod
                         item_award_id = 5
@@ -324,12 +322,8 @@ class KirbyNIDLClient(BizHawkClient):
 
                     if item_award_id:
                         logger.info(f'attempting to award queued item {current_item}')
-                        item_award_writes = [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
-                        if current_item == 13:
-                            item_award_writes.append((ONEUP_DETECT_ADR,[2],"IWRAM"))
-                        await bizhawk.write(
-                            ctx.bizhawk_ctx,
-                            item_award_writes
+                        await bizhawk.write(ctx.bizhawk_ctx,
+                            [(ITEM_AWARD_ADR, [item_award_id], "IWRAM")]
                         )
                         self.item_queue = self.item_queue[1:]
 
@@ -340,13 +334,10 @@ class KirbyNIDLClient(BizHawkClient):
                 ])
                 kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
                 now = time.time()
-                if kirby_hp < self.kirby_max_hp and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: #TODO: calc the upper limit from vitality when implemented (use previous calculation)
+                if kirby_hp < self.kirby_max_hp and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
                     logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
-                    await bizhawk.write(
-                        ctx.bizhawk_ctx, [
-                            (ITEM_AWARD_ADR, [1], "IWRAM"),
-                            (FOOD_DETECT_ADR, [2], "IWRAM") #second write to prevent awarded hp from triggering a pickup location check
-                        ]
+                    await bizhawk.write(ctx.bizhawk_ctx,
+                            [(ITEM_AWARD_ADR, [1], "IWRAM")]
                     )
                     self.hp_bank -= 1
                     self.hp_trickle_timestamp = now
@@ -380,66 +371,60 @@ class KirbyNIDLClient(BizHawkClient):
                 self.sent_boss_check = False
             if not screen_mod == 0x9:
                 self.sent_bigswitch_check = False
+            if not screen_mod == 0x13:
+                self.sent_arena_check = False
+                self.prev_boss_hp = 0
 
                 
             #In-Level Checks
             if screen_mod == 0x8:
-                #If an item pickup is detected, send the item check
+
+                #Pickup Item checks via the flags starting at EW 7BF0
                 #TODO: abstract the repeated pattern of bizhawk.read + int.from_bytes into a function that can handle 1 or multiple var reads
                 #Note that we only need the trailing comma syntax
-                (food_detectedb, oneup_detectedb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (FOOD_DETECT_ADR, 1, "IWRAM"),   
-                    (ONEUP_DETECT_ADR, 1, "IWRAM"),
+                (world_numb,level_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (OW_MOD_ADR, 1, "IWRAM"),   
+                    (LEVEL_MOD_ADR, 1, "IWRAM"),
                     (BGM_ID_ADR, 1, "IWRAM")     
                 ])
-                food_detected = int.from_bytes(food_detectedb) 
-                oneup_detected = int.from_bytes(oneup_detectedb)
+                world_num = int.from_bytes(world_numb,'little')
+                level_num = int.from_bytes(level_numb,'little')
                 bgm_id = int.from_bytes(bgm_idb)
-                if food_detected == 0x1 or oneup_detected == 0x1:
-                    logger.info(f'detected 1up or food pickup')
-                    (world_numb, level_numb, room_numb, x_coordb, y_coordb) = await bizhawk.read(ctx.bizhawk_ctx, [
-                        (OW_MOD_ADR, 1, "IWRAM"),   
-                        (LEVEL_MOD_ADR, 1, "IWRAM"),
-                        (ROOM_MOD_ADR, 1, "IWRAM"),
-                        (KIRBY_X_ADR, 2, "IWRAM"),  
-                        (KIRBY_Y_ADR, 2, "IWRAM")   
-                    ])
-                    wlr = (int.from_bytes(world_numb,'little'), int.from_bytes(level_numb,'little'), int.from_bytes(room_numb,'little'))
-                    logger.info(f'calculated WLR is {wlr}')
-                    if wlr in WLR_TO_LOCATION_NAME_SOLO.keys():
-                        loc_name = WLR_TO_LOCATION_NAME_SOLO[wlr]
-                        if not 'Candy' in loc_name: #Candy will trigger the location check -- just ignore it
-                            logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
-                            await ctx.send_msgs([{
-                                "cmd": "LocationChecks",
-                                "locations": [LOCATION_NAME_TO_ID[loc_name]]
-                            }])
-                    elif wlr in WLR_TO_LOCATION_XY_NAME.keys():
-                        #Find the loc in the tuple that kirby is closest to
-                        x_coord = int.from_bytes(x_coordb,'little')
-                        y_coord = int.from_bytes(x_coordb,'little')
-                        nearest_dist = math.inf; nearest = None
-                        for loc in WLR_TO_LOCATION_XY_NAME[wlr]:
-                            dist = math.hypot(x_coord - loc['X'], y_coord - loc['Y'])
-                            if dist < nearest_dist:
-                                nearest_dist = dist
-                                nearest = loc
-                        logger.info(f'Calculated Kirby at X {x_coord}, Y {y_coord}, distance {nearest_dist:3.2f} from the nearest item location')
-                        #Retrieve the location name and repeat the logic for basic one-item rooms
-                        loc_name = nearest['Name']
-                        if not 'Candy' in loc_name: #Candy will trigger the location check -- just ignore it
-                            logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
-                            await ctx.send_msgs([{
-                                "cmd": "LocationChecks",
-                                "locations": [LOCATION_NAME_TO_ID[loc_name]]
-                            }])
-                    food_detected = 0; oneup_detected = 0
+                if self.current_world != world_num or self.current_level != level_num:
+                    self.current_world = world_num; self.current_level = level_num
+                    self.current_pickup_flag_adr = PICKUP_FLAG_ADR + world_num*0x20 + level_num*4
+                    self.current_pickup_bitarr = -1
+                    logger.info(f'New level {world_num+1}-{level_num+1} detected, changing pickup array window')
 
-                    #After sending the check, it's the client's responsibility to reset the byte
-                    logger.info(f'Attempting to reset 1up and food triggers in control panel after sending pickup check')
-                    await bizhawk.write(
-                        ctx.bizhawk_ctx, [(FOOD_DETECT_ADR, [0], "IWRAM"),(ONEUP_DETECT_ADR, [0], "IWRAM")]
-                    )
+
+                pickup_bitarrb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (self.current_pickup_flag_adr, 2, "EWRAM")       
+                ])
+                pickup_bitarr = int.from_bytes(pickup_bitarrb,'little')
+                if self.current_pickup_bitarr == -1: #freshly entered a new level (which may have pickups already in the array). Set current bitarr to the read value and do nothing else
+                    self.current_pickup_bitarr = pickup_bitarr
+                    new_bit = 0
+                else:
+                    new_bit = pickup_bitarr ^ self.current_pickup_bitarr
+
+                if new_bit != 0: #The bit array changed, send the check now
+                    self.current_pickup_bitarr = pickup_bitarr
+                    pickup_id = new_bit.bit_length() #1st item id = 1, effectively 1-indexed
+                    loc_id_readable = (world_num+1)*100 + (level_num+1)*10 + pickup_id 
+                    loc_id = loc_id_readable + KNIDL_BASE_ID
+                    loc_name = None #Technically we don't need to find the location name here, but it's convenient for logging 
+                    try:
+                        loc_name = LOCATION_ID_TO_NAME[str(loc_id)]
+                    except IndexError:
+                        logger.warning(f'Attempted to find location name for nonexistent id: {loc_id_readable} (readable). Pass')
+                    if loc_name: 
+                        logger.info(f'Attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
+                        await ctx.send_msgs([{
+                            "cmd": "LocationChecks",
+                            "locations": [LOCATION_NAME_TO_ID[loc_name]]
+                        }])
+
+
                 ##Boss Checks -- look for the Kirby Dance BGM ID
                 if bgm_id == 0x0D and not self.sent_boss_check: #0x0D = Kirby Dance 
                     logger.info('Detected Kirby Dance')
@@ -465,12 +450,30 @@ class KirbyNIDLClient(BizHawkClient):
                 world_num = int.from_bytes(world_numb) + 1
                 level_num = int.from_bytes(level_numb) + 1
                 loc_id = int(KNIDL_BASE_ID + world_num*100 + level_num*10 + 9) #Pattern is WL9
-                logger.info(f'Attempting to send location ID {loc_id}, Boss check from World {world_num}')
+                logger.info(f'Attempting to send Boss check from World {world_num}')
                 await ctx.send_msgs([{
                     "cmd": "LocationChecks",
                     "locations": [loc_id]
                 }])
                 self.sent_bigswitch_check = True
+
+            #Arena Checks -- look for Boss HP going to 0
+            if screen_mod == 0x13:
+                (boss_hpb, world_numb) = await bizhawk.read(ctx.bizhawk_ctx, [  
+                    (BOSS_HP_ADR, 1, "IWRAM"),
+                    (OW_MOD_ADR, 1, "IWRAM")   
+                ])
+                boss_hp = int.from_bytes(boss_hpb)
+                world_num = int.from_bytes(world_numb) + 1
+                if not self.sent_arena_check and boss_hp == 0 and self.prev_boss_hp > 0: #Boss was defeated
+                    logger.info(f'Attempting to send check for Arena boss defeated in world {world_num}')
+                    loc_id = world_num*100 + 89 + KNIDL_BASE_ID
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": [loc_id]
+                    }])
+                    self.sent_arena_check = True
+                self.prev_boss_hp = boss_hp
 
 
             
@@ -489,16 +492,16 @@ class KirbyNIDLClient(BizHawkClient):
                     (world_num,x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
                     self.door_locked = True
                     logger.info('attempting to lock door')
-                    await bizhawk.write(
-                            ctx.bizhawk_ctx, [(DOOR_LOCK_ADR, [1], "IWRAM")]
-                        )
+                    await bizhawk.write(ctx.bizhawk_ctx, 
+                                    [(DOOR_LOCK_ADR, [1], "IWRAM")]
+                    )
                 elif self.door_locked and not \
                     (int.from_bytes(world_numb,'little'),x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
                     self.door_locked = False
                     logger.info('attempting to unlock door')
-                    await bizhawk.write(
-                            ctx.bizhawk_ctx, [(DOOR_LOCK_ADR, [0], "IWRAM")]
-                        )
+                    await bizhawk.write(ctx.bizhawk_ctx, 
+                                    [(DOOR_LOCK_ADR, [0], "IWRAM")]
+                    )
 
         except bizhawk.RequestFailedError:
             print('ERROR: bizhawk request failed error')

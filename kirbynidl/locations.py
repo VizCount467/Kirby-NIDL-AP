@@ -14,7 +14,8 @@ from . import items
 #The level clear will always be XX0, and items in the level XX(+n)
 #The Big Switch will always be XX9 (works because there are never more than 8 items in a single level) (3-6 comes close though!)
 #Boss level checks will always be X99 for convenient calculation, even if technically the boss level is just the next sequential level (ie, level 5 in W1)
-#Something similar can be done for Arena or Minigame checks, if those ever happen
+#The world's Arena will be X89
+#Something similar can be done for Minigame checks, if those ever happen
 LOCATION_TABLE_READABLE = {
     "Vegetable Valley 1 - Level Clear" : 110,
     "Vegetable Valley 1 - Tomato (Waterfall)" : 111,
@@ -26,6 +27,7 @@ LOCATION_TABLE_READABLE = {
     "Vegetable Valley 4 - Level Clear" : 140,
     "Vegetable Valley 4 - Pep Drink (Platform)" : 141,
     "Vegetable Valley 4 - 1up (Shotzos)" : 142,
+    "Vegetable Valley 4 - Candy (Stump)" : 143,
     "Vegetable Valley - Boss (Whispy Woods)" : 199
 }
 KNIDL_BASE_ID = 2742740

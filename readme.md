@@ -27,11 +27,13 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - Locations
     - All level clears
     - All world boss clears
-    - All consumable items (Pep Drinks, 1ups, Maxim Tomatoes)
+    - All consumable items (Pep Drinks, 1ups, Candy, Maxim Tomatoes)
     - All Big Switches
+    - All Arenas
 - Items
     - The final victory Condition
     - Unlock minigames and other side doors (Museum, Arena, Warp Star Station, et)
+- Death link Support
 
 ## Speculative Features
 
@@ -44,20 +46,18 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin)
 - Enemy Ability Shuffle
+- Energy Link Support
 
 ## Known Bugs and Issues
 
 - As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated
 - The life counter displays incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
-- The life counter may be calculated incorrectly sometimes after client awards 1ups? Need more testing here 
+- The life counter may be calculated incorrectly sometimes after client awards 1ups? Starts at 3?
 - It may be possible to enter a "locked" overworld door by using fast copy abilities (wheel, hi-jump) - need to test this
-- When Kirby tries to open a "locked" door, the intended SFX plays EVERY FRAME (will resolve soon)
 - The Item Sync Counter may not be stored in saveRAM as intended, leading to all received items being awarded on startup. 
-- Invinciblity Candy will trigger location checks because it uses the "Feed Me" function. The client needs to be designed with awareness of these non-locations
 - When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
 - The interaction of the client-dependent ability locking with the mix roulette is still unknown -- may need to nullify mixes entirely
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor?)
-- Because Kirby can inhale in-level pickups from various locations, using coordinates to detect location checks is not viable. Soon to be replaced...
 
 ## Latest Updates
 
@@ -65,5 +65,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece.
 - 8/10/26: Added Vitality and Copy Ability unlocks (currently 1 vitality, and just Sword). Fixed SFX for all awarded items
 - 8/13/26: Added (untested) big switch detection logic. Attempted to fix EVERY FRAME door SFX issue. Added (soon to be useless) coordinate logic for in-level pickups
+- 8/14/26: Overhauled item detection to use collection flags in RAM rather than coordinates. Added (untested) Arena clear detection
 
 
