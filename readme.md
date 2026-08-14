@@ -57,11 +57,13 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
 - The interaction of the client-dependent ability locking with the mix roulette is still unknown -- may need to nullify mixes entirely
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor?)
+- Because Kirby can inhale in-level pickups from various locations, using coordinates to detect location checks is not viable. Soon to be replaced...
 
 ## Latest Updates
 
 - 8/3/26: Added "HP Bank" feature modeled off the Mega Man 2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
 - 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece.
 - 8/10/26: Added Vitality and Copy Ability unlocks (currently 1 vitality, and just Sword). Fixed SFX for all awarded items
+- 8/13/26: Added (untested) big switch detection logic. Attempted to fix EVERY FRAME door SFX issue. Added (soon to be useless) coordinate logic for in-level pickups
 
 

@@ -18,6 +18,7 @@
 .definelabel DoorLockControlByte, 0x030078A0
 .definelabel FoodCollectControlByte, 0x030078A1 ;0 normally, 1 if an item was detected, 2/3 if the item was awarded by AP (don't do anything), 4 as meaningless intermediate
 .definelabel OneUpCollectControlByte, 0x030078A2 ;0 normally, 1 if an item was detected, 2 if the item was awarded by AP (don't do anything)
+.definelabel DoorLockSFXControl, 0x030078A3
 .definelabel ItemAwardControlByte, 0x030078A8
 .definelabel HealCounter, 0x030078A9
 
@@ -112,8 +113,18 @@
 .org FreeROM
 .area 0x4000 ;make it bigger if we need, I guess
 FreeROM_ClientCheck:
-    ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
     push {r0, r1, lr} ;Store these from the original position update function
+
+    ;Manage the Door SFX control byte
+    ldr r2, =DoorLockSFXControl
+    ldrb r0,[r2]
+    cmp r0, #0x0 ;If the value is 0, do nothing. Else, decrement the value by 1. The SFX will only play again once the value is 0
+    beq @@Continue_Client_Check
+    sub r0, r0, #1
+    strb r0, [r2]
+
+@@Continue_Client_Check
+    ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
     ldr r2, =ScreenModifier
     ldrb r0,[r2]
     cmp r0, #0x8
@@ -347,14 +358,23 @@ FreeROM_DoorLock:
     cmp r0,#0x0
     beq @@GoToDoorHandlerStart  ;if 0 (door unlocked), go back to OG function.
 
+    ;Check the Door Lock Control Panel Var so that the SFX doesn't play EVERY FRAME
+    ldr r1, =DoorLockSFXControl
+    ldrb r0,[r1]
+    cmp r0, #0x0 ;If the SFX byte is anything other than zero, skip playing the SFX
+    bne @@Continue_Post_LockSFX
+    mov r0, #0x1E ;Set the refresh timer now that the SFX will be played 30 frames = 1/2 second
+    strb r0, [r1]
+
     ;Play a SFX if the door is locked to cue the player
     ldr r1, =@@Continue_Post_LockSFX+1
     mov lr, r1
-    ;Call SFX function with a certain SFX that sounds like banging on a door I guess
+    ;Call SFX function with a certain SFX that sounds like banging on a door (the stone ability "thump")
     mov r0, #0x89
     add r0, #0x64
     ldr r3, =Play_SFX_Start+1 
     bx r3
+
 @@Continue_Post_LockSFX:
     mov r0,#0x0 ;If 1, set r0 to 0 (door handler output) and jump to the end of the door handler function
     ldr r1, =DoorHandlerEnd+1 ;+1, see note above

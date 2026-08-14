@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from .locations import LOCATION_NAME_TO_ID
 from .items import ITEM_NAME_TO_ID
-import copy, logging, time
+import copy, logging, time, math
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -21,16 +21,26 @@ logger.setLevel(logging.INFO)
 ##APWORLD STUFF
 KNIDL_BASE_ID = 2742740
 KIRBY_BASE_HP = 3
+
 #Table for items that are alone in their rooms and can be mapped to a single location from WLR alone
-#For multi-items rooms, will make a separate data table later from the master data source and do something more involved
+#The tuple represents World, Level and Room number, 0-indexed
 WLR_TO_LOCATION_NAME_SOLO = {
     (0,0,2) : "Vegetable Valley 1 - Tomato (Waterfall)",
     (0,1,3) : "Vegetable Valley 2 - Tomato (Cave)",
     (0,1,5) : "Vegetable Valley 2 - 1up (Hidden Room)",
     (0,2,3) : "Vegetable Valley 3 - Tomato (Hotheads)",
-    (0,3,1) : "Vegetable Valley 4 - Pep Drink (Platform)",
-    (0,3,3) : "Vegetable Valley 4 - 1up (Shotzos)"
+    (0,3,1) : "Vegetable Valley 4 - Pep Drink (Platform)"
 }
+
+#Table for items that are NOT alone in their rooms and need additional XY coordinate info to track them
+#Same tuple logic as above, only each maps to a tuple of dicts that define the item XY along with its name
+WLR_TO_LOCATION_XY_NAME = {
+    (0,3,3): (
+        {'X':1,'Y':2,'Name': "Vegetable Valley 4 - Candy (Stump)"},
+        {'X':1,'Y':2,'Name': "Vegetable Valley 4 - 1up (Shotzos)"}
+    )
+}
+
 #Table of door coordinates (XY of left block) (doors are 2x1 blocks) 
 #If kirby is in front of the door blocks, the lock byte will be set. 
 #Only World 1 for now
@@ -114,6 +124,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.hp_trickle_timestamp = 0
         self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
         self.sent_boss_check = False
+        self.sent_bigswitch_check = False
         self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
@@ -158,9 +169,9 @@ class KirbyNIDLClient(BizHawkClient):
             #logging.debug(f'Screen mod is {screen_mod}')
 
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
-            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), A (Goal Game)
+            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game)
             # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
-            if not screen_mod in (0x5,0x7,0x8,0xA,0x12,0x13):
+            if not screen_mod in (0x5,0x7,0x8,0x9,0xA,0x12,0x13):
                 return
             
             #During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
@@ -367,6 +378,8 @@ class KirbyNIDLClient(BizHawkClient):
                 self.detected_goal_game = False
             if not screen_mod == 0x8:
                 self.sent_boss_check = False
+            if not screen_mod == 0x9:
+                self.sent_bigswitch_check = False
 
                 
             #In-Level Checks
@@ -395,20 +408,39 @@ class KirbyNIDLClient(BizHawkClient):
                     logger.info(f'calculated WLR is {wlr}')
                     if wlr in WLR_TO_LOCATION_NAME_SOLO.keys():
                         loc_name = WLR_TO_LOCATION_NAME_SOLO[wlr]
-                        logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
-                        await ctx.send_msgs([{
-                            "cmd": "LocationChecks",
-                            "locations": [LOCATION_NAME_TO_ID[loc_name]]
-                        }])
+                        if not 'Candy' in loc_name: #Candy will trigger the location check -- just ignore it
+                            logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
+                            await ctx.send_msgs([{
+                                "cmd": "LocationChecks",
+                                "locations": [LOCATION_NAME_TO_ID[loc_name]]
+                            }])
+                    elif wlr in WLR_TO_LOCATION_XY_NAME.keys():
+                        #Find the loc in the tuple that kirby is closest to
+                        x_coord = int.from_bytes(x_coordb,'little')
+                        y_coord = int.from_bytes(x_coordb,'little')
+                        nearest_dist = math.inf; nearest = None
+                        for loc in WLR_TO_LOCATION_XY_NAME[wlr]:
+                            dist = math.hypot(x_coord - loc['X'], y_coord - loc['Y'])
+                            if dist < nearest_dist:
+                                nearest_dist = dist
+                                nearest = loc
+                        logger.info(f'Calculated Kirby at X {x_coord}, Y {y_coord}, distance {nearest_dist:3.2f} from the nearest item location')
+                        #Retrieve the location name and repeat the logic for basic one-item rooms
+                        loc_name = nearest['Name']
+                        if not 'Candy' in loc_name: #Candy will trigger the location check -- just ignore it
+                            logger.info(f'attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
+                            await ctx.send_msgs([{
+                                "cmd": "LocationChecks",
+                                "locations": [LOCATION_NAME_TO_ID[loc_name]]
+                            }])
                     food_detected = 0; oneup_detected = 0
-
-                    #else: TODO: do math on the coordiantes to get the location name, when that becomes necessary
 
                     #After sending the check, it's the client's responsibility to reset the byte
                     logger.info(f'Attempting to reset 1up and food triggers in control panel after sending pickup check')
                     await bizhawk.write(
                         ctx.bizhawk_ctx, [(FOOD_DETECT_ADR, [0], "IWRAM"),(ONEUP_DETECT_ADR, [0], "IWRAM")]
                     )
+                ##Boss Checks -- look for the Kirby Dance BGM ID
                 if bgm_id == 0x0D and not self.sent_boss_check: #0x0D = Kirby Dance 
                     logger.info('Detected Kirby Dance')
                     world_numb, = await bizhawk.read(ctx.bizhawk_ctx, [
@@ -422,6 +454,23 @@ class KirbyNIDLClient(BizHawkClient):
                         "locations": [loc_id]
                     }])
                     self.sent_boss_check = True
+
+            #Big Switch Checks -- look for a specific screen mod        
+            if screen_mod == 0x9 and not self.sent_bigswitch_check:
+                logger.info('Detected Big Switch cutscene')
+                (world_numb, level_numb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (OW_MOD_ADR, 1, "IWRAM"),   
+                    (LEVEL_MOD_ADR, 1, "IWRAM"),   
+                ])
+                world_num = int.from_bytes(world_numb) + 1
+                level_num = int.from_bytes(level_numb) + 1
+                loc_id = int(KNIDL_BASE_ID + world_num*100 + level_num*10 + 9) #Pattern is WL9
+                logger.info(f'Attempting to send location ID {loc_id}, Boss check from World {world_num}')
+                await ctx.send_msgs([{
+                    "cmd": "LocationChecks",
+                    "locations": [loc_id]
+                }])
+                self.sent_bigswitch_check = True
 
 
             

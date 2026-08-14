@@ -12,6 +12,7 @@ from . import items
 #Common practice seems to be to pick a unique base number and offset from there
 #For my Kirby NIDL, Let's use 3 digits, first for world, second for level, third sequential
 #The level clear will always be XX0, and items in the level XX(+n)
+#The Big Switch will always be XX9 (works because there are never more than 8 items in a single level) (3-6 comes close though!)
 #Boss level checks will always be X99 for convenient calculation, even if technically the boss level is just the next sequential level (ie, level 5 in W1)
 #Something similar can be done for Arena or Minigame checks, if those ever happen
 LOCATION_TABLE_READABLE = {
