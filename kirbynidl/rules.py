@@ -28,7 +28,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     # Using lambdas with boolean logic combos of state.has and state.has_all is standard
     #you can also AND rules together via add_rule(location,rule) once one rule is set, but this is actually slower and not recommended
     
-    #Now, since the entrance rules handle all door key logic in NiDL, all we need to set is the logic for pickups outside of the keys (abilities, et)
+    #Now, since the entrance rules handle all door key logic in NiDL, all we need to set is the logic for pickups (abilities, et)
     #And also the boss logic (star rod pieces)
     #For now, no pickup in world 1 requires an ability, so let's just set the boss rule
     set_rule(world.get_location("Vegetable Valley - Boss (Whispy Woods)"),

@@ -30,6 +30,6 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
     for rn in w1_names_to_regions.keys():
         #region (region object), entrance name (string), rule definition with state
         #remember that a lambda is just a nameless function; any callable function could fill the arg also (but an argument of a "state" object is expected, ofc)
-        ##w1.connect(w1_names_to_regions[rn], rn + " Door", lambda state: state.has(rn + " Level Key", world.player)) ##Key rule dummied out until keys implemented, maybe never
+        ##w1.connect(w1_names_to_regions[rn], rn + " Door", lambda state: state.has(rn + " Level Key", world.player)) 
         w1.connect(w1_names_to_regions[rn], rn + " Door")
   
