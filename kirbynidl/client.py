@@ -65,7 +65,8 @@ WORLD_NAMES_INDEXED = [
     'Orange Ocean',
     'Rainbow Resort'
 ]
-
+#Number of levels in world {[index]+1}
+LEVELS_PER_WORLD_INDEX = (4,5,6,6,6,6,6)
 
 ##ROM ADDRESSES
 ROM_HEADER_ADR = 0x0A0 #As it is for all GBA games
@@ -81,7 +82,8 @@ SCREEN_MOD_ADR = 0x23D8
 OW_MOD_ADR = 0x23B8
 LEVEL_MOD_ADR = 0x1F20
 ROOM_MOD_ADR = 0x2468
-IW_CLEAR_FLAGS_W1 = [0x2400,0x2401,0x2402,0x2403]
+IW_CLEAR_FLAGS_START = 0x2400 
+IW_SWITCHEXISTS_BITARR = [0x23C8, 0x23C9, 0x23CA]
 KIRBY_X_ADR = 0x23CC
 KIRBY_Y_ADR = 0x2388
 MOUTH_ADR = 0x217B
@@ -168,15 +170,19 @@ class KirbyNIDLClient(BizHawkClient):
             if not screen_mod in (0x5,0x7,0x8,0x9,0xA,0x12,0x13):
                 return
             
-            #During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
-            # For now, only set them for World 1
+            # During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
+            # Also set the big switch exists array to all 0 so that all big switches appear
             # Also set Kirby's max vitality here too
             # This strategy is a problem if savestates are used, but that's whatever for now
             if (not self.initial_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
-                logger.info(f'Attempting to write clear flags to unlock all levels')
+                logger.info(f'Attempting to write clear flags to unlock all levels and big switches')
                 clear_flag_writes = []
-                for f in IW_CLEAR_FLAGS_W1:
-                    clear_flag_writes.append((f, [0x2], "IWRAM"))
+                for world_num, level_count in enumerate(LEVELS_PER_WORLD_INDEX):
+                    for offset in range(level_count):
+                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + world_num*6 + offset, [0x2], "IWRAM"))
+
+                for f in IW_SWITCHEXISTS_BITARR:
+                    clear_flag_writes.append((f,[0],"IWRAM"))
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -409,7 +415,10 @@ class KirbyNIDLClient(BizHawkClient):
 
                 if new_bit != 0: #The bit array changed, send the check now
                     self.current_pickup_bitarr = pickup_bitarr
-                    pickup_id = new_bit.bit_length() #1st item id = 1, effectively 1-indexed
+                    if world_num + 1 == 6 and level_num + 1 == 6: #Carve out for level 6-6, where 8 UFOs take up the first 8 item id slots
+                        pickup_id = new_bit.bit_length() - 8
+                    else:
+                        pickup_id = new_bit.bit_length() #1st item id = 1, effectively 1-indexed
                     loc_id_readable = (world_num+1)*100 + (level_num+1)*10 + pickup_id 
                     loc_id = loc_id_readable + KNIDL_BASE_ID
                     loc_name = None #Technically we don't need to find the location name here, but it's convenient for logging 

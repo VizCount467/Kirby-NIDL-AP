@@ -12,13 +12,7 @@ from BaseClasses import Item, ItemClassification
 # Common practice is to offset these ID's to an arbitrary base id to prevent collisions, like in locations
 
 ITEM_TABLE_READABLE = {
-    ##LEVEL KEYS: not in use, would complicate ability acessibility logic immensely
-    ##LEVEL KEYS: Format 1WL
-    # 'Vegetable Valley 1 Level Key' : 111,
-    # 'Vegetable Valley 2 Level Key' : 112,
-    # 'Vegetable Valley 3 Level Key' : 113,
-    # 'Vegetable Valley 4 Level Key' : 114,
-    ##Abilities: Format 2XX, where XX is ID in client script
+    ##LEVEL KEYS: not in use, would complicate ability acessibility logic immensely. If they were, format would be 1WL, where W = world num, L = Level Num, ie 114 for 1-4
     ##Misc
     'Star Rod Piece' : 1,
     'Vitality' : 5,
@@ -28,7 +22,30 @@ ITEM_TABLE_READABLE = {
     '1up' : 13,
     'Invincibility Candy' : 14,
     ##Ability Unlocks. Format 50 + XX, where XX is the in-RAM ability id. 
-    'Sword' : 54
+    'Fire' : 51,
+    'Spark' : 52,
+    'Cutter' : 53,
+    'Sword' : 54,
+    'Burning' : 55,
+    'Laser' : 56,
+    'Mike' : 57,
+    'Wheel' : 58,
+    'Hammer' : 59,
+    'Parasol' : 60,
+    'Sleep' : 61,
+    'Needle' : 62,
+    'Ice' : 63,
+    'Freeze' : 64,
+    'Hi-Jump' : 65,
+    'Beam' : 66,
+    'Stone' : 67,
+    'Ball' : 68,
+    'Tornado' : 69,
+    'Crash' : 70,
+    'Light' : 71,
+    'Backdrop' : 72,
+    'Throw' : 73,
+    'UFO' : 74
 }
 KNIDL_BASE_ID = 2742740
 ITEM_NAME_TO_ID = {
@@ -50,7 +67,7 @@ class KirbyNIDLItem(Item):
 # This function will help define that required function
 def get_random_filler_item_name(world: KirbyNIDLWorld) -> str:
     # IMPORTANT: Whenever you need to use a random generator, we must use world.random.
-    # This ensures that generating with the same generator seed twice yields the same output.
+    # This ensures that generating with the same generator seed yields the same output.
     # NEVER use a bare random object from Python's built-in random module.
     return world.random.choices(Filler_Items,Filler_Weights,k=1)[0]
 
@@ -59,13 +76,20 @@ def get_random_filler_item_name(world: KirbyNIDLWorld) -> str:
 # As in APQuest it's good to have it in its own function over here in items.py.
 def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
     #Decide on the correct classification (this will probably be neater and more systematic later)
-    #For now, there are only 4 possible filler items. Star Rod, ability unlocks are progression
+    #There are only 4 possible filler items. 
+    #Star Rod is of course progression
+    #Following the lead of the Kirby Super Star AP, all abilities are classified as progression, even if some are not involved in logic
+    #EXCEPT for the limited use Crash and Mike, which are Useful, and Sleep, which is a Trap
     #Vitality upgrades are useful, side door unlocks filler
     classification = None
     if name in Filler_Items:
         classification = ItemClassification.filler
     elif name == 'Vitality':
         classification = ItemClassification.useful
+    elif name in ('Crash', 'Mike'):
+        classification = ItemClassification.useful
+    elif name == 'Sleep':
+        classification = ItemClassification.trap
     else:
         classification = ItemClassification.progression
     #note that you can assign two classifications at once with "|" like this, useful in logic (mainly useful + prog or useful + filler)
@@ -81,19 +105,16 @@ def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
 #in which point that option set is invalid, but that's later
 def create_all_items(world: KirbyNIDLWorld) -> None:
     # Creating items should generally be done via the world's create_item method.
-    # First, create a list containing all the items that always exist (depending on options (later))
-    #For now, this is 1 star rod piece, 1 copy ability (sword), 1 Vitality
-    #Eventually, do this via the master item structure
-    itempool: list[Item] = [
-        ##No Keys at the moment, maybe no keys ever
-        # #world.create_item("Vegetable Valley 1 Level Key"), #This needs to be given in starting inventory (randomize which of the 4 is open later)
-        # world.create_item("Vegetable Valley 2 Level Key"),
-        # world.create_item("Vegetable Valley 3 Level Key"),
-        # world.create_item("Vegetable Valley 4 Level Key"),
-        world.create_item("Star Rod Piece"),
-        world.create_item("Sword"),
-        world.create_item("Vitality")
-    ]
+    # First, create a list containing all the items that always exist 
+    itempool: list[Item] = []
+    for _ in range(7):
+        itempool.append(world.create_item("Star Rod Piece"))
+    for _ in range(3): #TODO: allow option modification here
+        itempool.append(world.create_item("Vitality"))
+    for k in ITEM_TABLE_READABLE.keys():
+        if ITEM_TABLE_READABLE[k] > 50 and ITEM_TABLE_READABLE[k] < 75: #Item is an ability -- in the range of those item ID's
+            itempool.append(world.create_item(k))
+        
 
     #Now find how much filler to place
     #First use this handy helper function (note that since no locations are filled yet, this is all the fillable locations)

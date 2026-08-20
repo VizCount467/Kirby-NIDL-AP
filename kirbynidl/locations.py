@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 from BaseClasses import ItemClassification, Location
 from . import items
+from .regions import LEVELS_PER_WORLD_INDEX, WORLD_NAMES_INDEXED
 
 #Every location must have a unique integer ID associated with it (no need to be sequential)
 #Common practice seems to be to pick a unique base number and offset from there
@@ -66,11 +67,13 @@ LOCATION_TABLE_READABLE = {
     "Ice Cream Island 5 - Pep Drink (Starman Room)" : 255,
     "Ice Cream Island 5 - Tomato (Poppy Bros. Jr.)" : 256,
 
+    "Ice Cream Island - Arena Clear" : 289,
     "Ice Cream Island - Boss (Paint Roller)" : 299,
 
 
     "Butter Building 1 - Level Clear" : 310,
     "Butter Building 1 - Pep Drink (Big Switch Room)" : 311,
+    "Butter Building 1 - Big Switch" : 319,
 
     "Butter Building 2 - Level Clear" : 320,
     "Butter Building 2 - Tomato (Poppy Bros. Jr.)" : 321,
@@ -101,19 +104,23 @@ LOCATION_TABLE_READABLE = {
     "Butter Building 6 - Pep Drink (Hi Jump Room Mid Right)" : 367,
     "Butter Building 6 - Tomato (Hi Jump Room End Left)" : 365,
     "Butter Building 6 - 1up (Hi Jump Room End Right)" : 366,
+    "Butter Building 6 - Big Switch" : 369,
 
+    "Butter Building - Arena Clear" : 389,
     "Butter Building - Boss (Mr. Shine and Mr. Bright)" : 399,
 
 
     "Grape Garden 1 - Level Clear" : 410,
+    "Grape Garden 1 - Big Switch" : 419,
 
     "Grape Garden 2 - Level Clear" : 420,
     "Grape Garden 2 - Tomato (Sqishy Room)" : 422,
-    "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 422,
+    "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 421,
 
     "Grape Garden 3 - Level Clear" : 430,
     "Grape Garden 3 - 1up (Cannon)" : 432,
     "Grape Garden 3 - Tomato (Blimp Interior)" : 431,
+    "Grape Garden 3 - Big Switch" : 439,
 
     "Grape Garden 4 - Level Clear" : 440,
     "Grape Garden 4 - 1up (Wheel Race)" : 441,
@@ -131,7 +138,9 @@ LOCATION_TABLE_READABLE = {
     "Grape Garden 6 - Pep Drink (Poolside)" : 461,
     "Grape Garden 6 - 1up (Stake)" : 462,
     "Grape Garden 6 - Pep Drink (Near Goal)" : 463,
+    "Grape garden 6 - Big Switch" : 469,
 
+    "Grape Garden - Arena Clear" : 489,
     "Grape Garden - Boss (Kracko)" : 499,
 
 
@@ -139,6 +148,7 @@ LOCATION_TABLE_READABLE = {
     "Yogurt Yard 1 - 1up (Rocky Room)" : 512,
     "Yogurt Yard 1 - Pep Drink (Skydive Room)" : 511,
     "Yogurt Yard 1 - Pep Drink (Big Switch Room)" : 514,
+    "Yogurt Yard 1 - Big Switch" : 519,
 
     "Yogurt Yard 2 - Level Clear" : 520,
     "Yogurt Yard 2 - 1up (Before Bonkers)" : 521,
@@ -154,15 +164,19 @@ LOCATION_TABLE_READABLE = {
     "Yogurt Yard 4 - Tomato (Before Big Switch 1)" : 544,
     "Yogurt Yard 4 - 1up (Before Big Switch 2)" : 543,
     "Yogurt Yard 4 - Pep Drink (Big Waterfall Cave)" : 542,
+    "Yogurt Yard 4 - Big Switch" : 549,
 
     "Yogurt Yard 5 - Level Clear" : 550,
     "Yogurt Yard 5 - Tomato (Forest Thicket)" : 551,
+    "Yogurt Yard 5 - Big Switch" : 559,
 
     "Yogurt Yard 6 - Level Clear" : 560,
     "Yogurt Yard 6 - Tomato (Wheelie Room)" : 561,
     "Yogurt Yard 6 - Tomato (Big Switch Room Right)" : 563,
     "Yogurt Yard 6 - 1up (Big Switch Room Left)" : 562,
+    "Yogurt Yard 6 - Big Switch" : 569,
 
+    "Yogurt Yard - Arena Clear" : 589,
     "Yogurt Yard - Boss (Heavy Mole)" : 599,
 
 
@@ -170,11 +184,13 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 1 - 1up (Metal Blocks)" : 611,
     "Orange Ocean 1 - Tomato (Before Big Switch Left)" : 613,
     "Orange Ocean 1 - 1up (Before Big Switch Right)" : 612,
+    "Orange Ocean 1 - Big Switch" : 619,
 
     "Orange Ocean 2 - Level Clear" : 620,
     "Orange Ocean 2 - Pep Drink (Bomb Block)" : 621,
     "Orange Ocean 2 - 1up (Rocky Room)" : 624,
     "Orange Ocean 2 - Tomato (Poppy Bros. Jr.)" : 622,
+    "Orange Ocean 2 - Big Switch" : 629,
 
     "Orange Ocean 3 - Level Clear" : 630,
     "Orange Ocean 3 - Pep Drink (Ladder)" : 631,
@@ -184,6 +200,7 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 3 - Pep Drink (After Bonkers)" : 633,
     "Orange Ocean 3 - 1up (Right Window Secret)" : 635,
     "Orange Ocean 3 - 1up (Left Window Secret)" : 634,
+    "Orange Ocean 3 - Big Switch" : 639,
 
     "Orange Ocean 4 - Level Clear" : 640,
     "Orange Ocean 4 - Pep Drink (Flooded Alcove)" : 646,
@@ -192,23 +209,28 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 4 - 1up (Beam Bomb Block 3)" : 644,
     "Orange Ocean 4 - 1up (Cave Detour)" : 641,
     "Orange Ocean 4 - Pep Drink (Below Bomber)" : 645,
+    "Orange Ocean 4 - Big Switch" : 649,
 
     "Orange Ocean 5 - Level Clear" : 650,
     "Orange Ocean 5 - Tomato (Cliff Top)" : 651,
     "Orange Ocean 5 - 1up (Cannon Pit)" : 652,
+    "Orange Ocean 5 - Big Switch" : 659,
 
     "Orange Ocean 6 - Level Clear" : 660,
     #Technically, the ID's here are 9, 10 and 11 because of the UFO's. The client will have a carve-out for this special case
     "Orange Ocean 6 - Tomato (UFO Room)" : 661, 
     "Orange Ocean 6 - Candy (After Poppy Bros. Sr.)" : 663,
     "Orange Ocean 6 - 1up (Upper Path Metal Blocks)" : 662,
+    "Orange Ocean 6 - Big Switch" : 669,
 
+    "Orange Ocean - Arena Clear" : 689,
     "Orange Ocean - Boss (Meta Knight)" : 699,
 
 
     "Rainbow Resort 1 - Level Clear" : 710,
     "Rainbow Resort 1 - 1up (Laser Room)" : 711,
-    "Rainbow Resort 2 - Pep Drink (Block Tunnel)" : 661,
+    "Rainbow Resort 1 - Pep Drink (Block Tunnel)" : 712,
+    "Rainbow Resort 1 - Big Switch" : 719,
 
     "Rainbow Resort 2 - Level Clear" : 720,
     "Rainbow Resort 2 - 1up (Hard Midboss Reward 1)" : 723,
@@ -216,7 +238,7 @@ LOCATION_TABLE_READABLE = {
     "Rainbow Resort 2 - 1up (Hard Midboss Reward 3)" : 725,
     "Rainbow Resort 2 - 1up (Hard Midboss Reward 4)" : 722,
     "Rainbow Resort 2 - 1up (Hard Midboss Reward 5)" : 726,
-    "Rainbow Resort 2 - Tomato (Near Goal)" : 711,
+    "Rainbow Resort 2 - Tomato (Near Goal)" : 721,
 
     "Rainbow Resort 3 - Level Clear" : 730,
     "Rainbow Resort 3 - Tomato (Icy Climb)" : 731,
@@ -245,6 +267,7 @@ LOCATION_TABLE_READABLE = {
     "Rainbow Resort 6 - Tomato (Float Islands 2)" : 763,
     "Rainbow Resort 6 - Tomato (Moon Room 1)" : 766,
     "Rainbow Resort 6 - 1up (Moon Room 2)" : 765,
+    "Rainbow Resort 6 - Big Switch" : 769,
 }
 
 KNIDL_BASE_ID = 2742740
@@ -266,26 +289,24 @@ class KirbyNIDLLocation(Location):
 #you can also make a location via the constructor, but since every must have a region, this makes more sense
 def create_all_locations(world: KirbyNIDLWorld) -> None:
 
-    #TODO: list out all the regions once we have the full list built instead of hardcoding here. Greater abstraction will come!
-    for region_name in ["Vegetable Valley 1","Vegetable Valley 2","Vegetable Valley 3","Vegetable Valley 4","Vegetable Valley"]:
-        r = world.get_region(region_name)
-        #Grab all location id mappings that start with the region name for levels
-        if region_name[-1].isdigit():
-            r_locs = get_location_names_with_ids(k for k in LOCATION_NAME_TO_ID.keys() if k.startswith(region_name))
-            r.add_locations(r_locs,KirbyNIDLLocation)
-        #Put the boss locations in the main World
-        else:
-            r_locs = get_location_names_with_ids(k for k in LOCATION_NAME_TO_ID.keys() if k.startswith(region_name) and '- Boss' in k)
-            r.add_locations(r_locs,KirbyNIDLLocation)
+    for i,world_name in enumerate(WORLD_NAMES_INDEXED):
+        #Put the Boss and arena locations in the "overworld"
+        r_ow = world.get_region(world_name)
+        r_locs = get_location_names_with_ids(k for k in LOCATION_NAME_TO_ID.keys() if k.startswith(world_name) and ('- Boss' in k or '- Arena' in k))
+        r_ow.add_locations(r_locs,KirbyNIDLLocation)
+        for j in range(LEVELS_PER_WORLD_INDEX[i]):
+            level_region_name = world_name + ' ' + str(j+1)
+            r_lv = world.get_region(level_region_name)
+            r_locs = get_location_names_with_ids(k for k in LOCATION_NAME_TO_ID.keys() if k.startswith(level_region_name))
+            r_lv.add_locations(r_locs,KirbyNIDLLocation)
 
     #If we want to add an event ("fake" location used in game logic but not actually a check), do this also
     #Here, we create a "Victory" event to make declaring World completion easier
-    #In this 1-world iteration of NIDL, we'll just put this event on Whispy Woods being defeated (change the name eventually to "Nightmare defeated, et")
-    #Note, this "final boss defeated" event is created in this statement, and can be accessed like a location
+    #Note, this "Nightmare" event is created in this statement, and can be accessed like a location
     #the "Victory" is also created in this statement, and is accessed like an item in logical requirements
-    r = world.get_region('Vegetable Valley')
+    r = world.get_region('Rainbow Resort')
     r.add_event(
-            "Final Boss Defeated", "Victory", location_type=KirbyNIDLLocation, item_type=items.KirbyNIDLItem
+            "The Fountain of Dreams - Nightmare", "Victory", location_type=KirbyNIDLLocation, item_type=items.KirbyNIDLItem
         )
 
 
