@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 #See locations.py for explanation of this boilerplate
 
 from BaseClasses import Item, ItemClassification
+from .regions import WORLD_NAMES_INDEXED
 
 # Every item must have a unique integer ID associated with it.
 # We will have a lookup from item name to ID here that, in world.py, we will import and bind to the world class.
@@ -45,17 +46,27 @@ ITEM_TABLE_READABLE = {
     'Light' : 71,
     'Backdrop' : 72,
     'Throw' : 73,
-    'UFO' : 74
+    'UFO' : 74,
 }
+##Add the Side Door Unlocks: Format 2YZ, where Y is the world number and Z is the type
+##ie, W1 Museum is 215
+SIDE_DOORS_PER_WORLD = [
+    '156','12456','23456','13456','123456','123456','16'
+]
+SIDE_DOOR_MAP = ['Bomb Rally','Air Grind','Quick Draw','Arena','Museum','Warp Station']
+for i in range(len(WORLD_NAMES_INDEXED)):
+    for sd in SIDE_DOORS_PER_WORLD[i]:
+        item_name = f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[sd]} Key'
+        ITEM_TABLE_READABLE[item_name] = 200 + (i+1)*10 + int(SIDE_DOOR_MAP[sd])
+
 KNIDL_BASE_ID = 2742740
 ITEM_NAME_TO_ID = {
     k:ITEM_TABLE_READABLE[k]+KNIDL_BASE_ID for k in ITEM_TABLE_READABLE.keys()
 }
 
 #Here to make a weighted choice from among the filler items
-#TODO: make dependent on some sort of master data table to eliminate possible name conflicts
 Filler_Items = ['Pep Drink','Maxim Tomato','1up','Invincibility Candy']
-Filler_Weights = [4,2,3,1] #These are not the in-game ratios, I just made them up. In the future, this will probably be an option
+Filler_Weights = [4,2,3,1] #These are not the in-game ratios, I just made them up. In the future, this will _maybe_ be an option
 
 # Each Item instance must correctly report the "game" it belongs to.
 # To make this simple, it is common practice to subclass the basic Item class and override the "game" field.

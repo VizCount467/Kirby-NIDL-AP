@@ -35,9 +35,51 @@ OW_WXY_TO_DOOR_NAME = {
     # (0,0x13,0xC) : 'Vegetable Valley 3 Level',
     # (0,0x18,0xF) : 'Vegetable Valley 4 Level',
     (0,0x1B,0x7) : 'Vegetable Valley Boss',
-    # (0,0xA,0xD) : 'Vegetable Valley Bomb Rally',
-    # (0,0xE,0x9) : 'Vegetable Valley Museum',
-    # (0,0x1B,0x3) : 'Vegetable Valley Warp Station',
+    (0,0xA,0xD) : 'Vegetable Valley Bomb Rally',
+    (0,0xE,0x9) : 'Vegetable Valley Museum',
+    (0,0x1B,0x3) : 'Vegetable Valley Warp Station',
+
+    (1,0x6,0x6) : 'Ice Cream Island Air Grind',
+    (1,0x15,0xE) : 'Ice Cream Island Bomb Rally',
+    (1,0x17,0x4) : 'Ice Cream Island Museum',
+    (1,0x1E,0x6) : 'Ice Cream Island Arena',
+    (1,0x28,0xD) : 'Ice Cream Island Warp Station',
+    (1,0x2B,0x6) : 'Ice Cream Island Boss',
+
+    (2,0xC,0x28) : 'Butter Building Arena',
+    (2,0x2,0x1B) : 'Butter Building Bomb Rally',
+    (2,0xC,0x12) : 'Butter Building Quick Draw',
+    (2,0x2,0xD) : 'Butter Building Air Grind',
+    (2,0xC,0x9) : 'Butter Building Warp Station',
+    (2,0x7,0x6) : 'Butter Building Boss',
+
+    (3,0x3,0x8) : 'Grape Garden Bomb Rally',
+    (3,0xC,0x3) : 'Grape Garden Quick Draw',
+    (3,0x11,0xE) : 'Grape Garden Museum',
+    (3,0x1C,0xF) : 'Grape Garden Arena',
+    (3,0x2B,0x8) : 'Grape Garden Warp Station',
+    (3,0x2B,0x4) : 'Grape Garden Boss',
+
+    (4,0x2,0xC) : 'Yogurt Yard Bomb Rally',
+    (4,0xA,0x10) : 'Yogurt Yard Air Grind',
+    (4,0x15,0x4) : 'Yogurt Yard Museum',
+    (4,0x1A,0xE) : 'Yogurt Yard Arena',
+    (4,0x24,0x4) : 'Yogurt Yard Quick Draw',
+    (4,0x2B,0xD) : 'Yogurt Yard Warp Station',
+    (4,0x2A,0x8) : 'Yogurt Yard Boss',
+
+    (5,0x7,0xB) : 'Orange Ocean Museum',
+    (5,0xD,0x3) : 'Orange Ocean Arena',
+    (5,0x12,0x14) : 'Orange Ocean Bomb Rally',
+    (5,0x16,0x6) : 'Orange Ocean Air Grind',
+    (5,0x24,0x10) : 'Orange Ocean Quick Draw',
+    (5,0x26,0x3) : 'Orange Ocean Warp Station',
+    (5,0x2C,0x8) : 'Orange Ocean Boss',
+
+    (6,0x5,0x6) : 'Rainbow Resort Bomb Rally',
+    (6,0x1B,0x3) : 'Rainbow Resort Warp Station',
+    (6,0xF,0x5) : 'Rainbow Resort Boss',
+
 }
 #Flesh out the above table with the right block of each door, and many surrounding blocks (including diagonals)
 for k in list(OW_WXY_TO_DOOR_NAME.keys()):
@@ -107,6 +149,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.ow_wxy_to_locked_doors = copy.copy(OW_WXY_TO_DOOR_NAME)
         self.door_locked = False
         self.initial_flags_written = False
+        self.init_startup = True
         self.sync_counter = 0
         self.item_queue = []
         self.hp_bank = 0
@@ -210,7 +253,7 @@ class KirbyNIDLClient(BizHawkClient):
 
             
             #while in a level or the OW, check to see if there are items to award
-            if self.sync_counter != len(ctx.items_received) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
+            if (self.sync_counter != len(ctx.items_received) or self.init_startup) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
                 logger.info(f'init item sync sequence. Current sync counter is {self.sync_counter}. Number of items received is {len(ctx.items_received)}')
                 file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (FILE_NUMBER_ADR, 1, "EWRAM")       
@@ -240,52 +283,52 @@ class KirbyNIDLClient(BizHawkClient):
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
 
-                    #Loop through all items to check for door key, ability unlock items, and vitality upgrades
-                    for received_item in ctx.items_received:
-                        received_item_name = ITEM_ID_TO_NAME[received_item.item]
-                        received_item_id_readable = received_item.item - KNIDL_BASE_ID
+                #Loop through all items to check for all the client-side locks: door key, ability unlock items, and vitality upgrades
+                for received_item in ctx.items_received:
+                    received_item_name = ITEM_ID_TO_NAME[received_item.item]
+                    received_item_id_readable = received_item.item - KNIDL_BASE_ID
 
-                        if received_item_name.endswith('Key'):
-                            #Remove the corresponding entry of the Key item from the list of locked doors
-                            logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
-                            for k in list(self.ow_wxy_to_locked_doors.keys()):
-                                if self.ow_wxy_to_locked_doors[k] == received_item_name[:-4]:
-                                    del self.ow_wxy_to_locked_doors[k]
+                    if received_item_name.endswith(' Key'):
+                        #Remove the corresponding entry of the Key item from the list of locked doors
+                        logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
+                        for k in list(self.ow_wxy_to_locked_doors.keys()):
+                            if self.ow_wxy_to_locked_doors[k] == received_item_name[:-4]:
+                                del self.ow_wxy_to_locked_doors[k]
 
-                        if received_item_id_readable > 50 and received_item_id_readable < 75:
-                            ability_id = received_item_id_readable - 50
-                            logger.info(f'removing lock for Copy Ability {ITEM_ID_TO_NAME[received_item.item]}, ability id {ability_id}')
-                            if ability_id in self.locked_ability_ids:
-                                self.locked_ability_ids.remove(ability_id)
+                    if received_item_id_readable > 50 and received_item_id_readable < 75:
+                        ability_id = received_item_id_readable - 50
+                        logger.info(f'removing lock for Copy Ability {ITEM_ID_TO_NAME[received_item.item]}, ability id {ability_id}')
+                        if ability_id in self.locked_ability_ids:
+                            self.locked_ability_ids.remove(ability_id)
 
-                    #Set kirby's max hp based off the number of vitality items
-                    extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
-                    new_kirby_max_hp = KIRBY_BASE_HP + extra_hp
-                    if new_kirby_max_hp != self.kirby_max_hp:
-                        self.kirby_max_hp = new_kirby_max_hp
-                        logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} (vitality recalculation)")
-                        hp_val = int(self.kirby_max_hp*8)
-                        await bizhawk.write(ctx.bizhawk_ctx, 
-                            [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
-                            (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
-                            ]
-                        )
-
-
-                    #Look at the number of star rod pieces and unlock the corresponding boss doors
-                    star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
-                    boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
-                    logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
-                    for k in list(self.ow_wxy_to_locked_doors.keys()):
-                        if self.ow_wxy_to_locked_doors[k] in boss_doors_to_unlock:
-                            del self.ow_wxy_to_locked_doors[k]
-
-                    #Set the sync counter now that any needed items have been awarded
-                    #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
-                    logger.info(f'attempting to write new sync counter {self.sync_counter}')
+                #Set kirby's max hp based off the number of vitality items
+                extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
+                new_kirby_max_hp = KIRBY_BASE_HP + extra_hp
+                if new_kirby_max_hp != self.kirby_max_hp:
+                    self.kirby_max_hp = new_kirby_max_hp
+                    logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} (vitality recalculation)")
+                    hp_val = int(self.kirby_max_hp*8)
                     await bizhawk.write(ctx.bizhawk_ctx, 
-                        [(sync_adr, [self.sync_counter], "EWRAM")]
+                        [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
+                        (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
+                        ]
                     )
+
+                #Look at the number of star rod pieces and unlock the corresponding boss doors
+                star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
+                boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
+                logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
+                for k in list(self.ow_wxy_to_locked_doors.keys()):
+                    if self.ow_wxy_to_locked_doors[k] in boss_doors_to_unlock:
+                        del self.ow_wxy_to_locked_doors[k]
+
+                #Set the sync counter now that any needed items have been awarded
+                #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
+                logger.info(f'attempting to write new sync counter {self.sync_counter}')
+                await bizhawk.write(ctx.bizhawk_ctx, 
+                    [(sync_adr, [self.sync_counter], "EWRAM")]
+                )
+                self.init_startup = False
 
             #Handle the in-game effects of all items (mainly playing SFX)
             #May need to put a delay timer on this

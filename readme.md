@@ -12,27 +12,22 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 
 ## Features Currently Implemented
 - Locations
-    - Clearing a Level (World 1 Only)
-    - Consumable item pickups (Pep Drinks, Maxim Tomatoes, and 1ups) (World 1 Only)
-    - Defeating a Boss (World 1 Only)
+    - All level clears
+    - All world boss clears
+    - All in-level consumable items (Pep Drinks, 1ups, Candy, Maxim Tomatoes)
+    - All Big Switches
+    - All Arenas
 - Items
     - Consumable Pickups (Pep Drinks, 1ups, Maxim Tomatoes, Invincibility Candy)
         - Health items are not awarded immediately, but added to a "Bank". HP is automatically restored from the bank as you take damage.
         - Consumable items are single-use. If you quit and re-open the same save file on the same saved game, you will not receive items received during the last session(the HP bank also resets)
     - "Star Rod Piece" (unlocks world Boss and next world)
-    - Unlock Copy Abilities (currently Sword Only)
-    - Vitality (Max HP Upgrades) (currently only 1)
+    - Unlock Copy Abilities 
+    - Vitality (Max HP Upgrades) - currently fixed at 3 with 3 base HP
 
 ## Features Planned To be Implemented
-- Locations
-    - All level clears
-    - All world boss clears
-    - All consumable items (Pep Drinks, 1ups, Candy, Maxim Tomatoes)
-    - All Big Switches
-    - All Arenas
 - Items
     - The final victory Condition
-    - Unlock minigames and other side doors (Museum, Arena, Warp Star Station, et)
 - Death link Support
 
 ## Speculative Features
@@ -51,7 +46,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 ## Known Bugs and Issues
 
 - As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated
-- The life counter displays incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
+- The life counter may display incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
 - The life counter may be calculated incorrectly sometimes after client awards 1ups? Starts at 3?
 - It may be possible to enter a "locked" overworld door by using fast copy abilities (wheel, hi-jump) - need to test this
 - The Item Sync Counter may not be stored in saveRAM as intended, leading to all received items being awarded on startup. 
@@ -61,10 +56,11 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 
 ## Latest Updates
 
-- 8/3/26: Added "HP Bank" feature modeled off the Mega Man 2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
+- 8/3/26: Added "HP Bank" feature modeled off the Mega Man 1/2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
 - 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece.
 - 8/10/26: Added Vitality and Copy Ability unlocks (currently 1 vitality, and just Sword). Fixed SFX for all awarded items
 - 8/13/26: Added (untested) big switch detection logic. Attempted to fix EVERY FRAME door SFX issue. Added (soon to be useless) coordinate logic for in-level pickups
 - 8/14/26: Overhauled item detection to use collection flags in RAM rather than coordinates. Added (untested) Arena clear detection
+- 8/20/26: Add full-game locations, items and logic rules
 
 

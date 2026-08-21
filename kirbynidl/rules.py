@@ -200,7 +200,48 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
             lambda state: can_use_ability(state, world, 'Fire'))
 
-    ### Big Switch Logic
+    ###BIG SWITCH LOGIC
+    #Technically, the 4-6 big switch is free if you know where it is, but no new player would find it without the intended strat
+    set_rule(world.get_location("Grape Garden 6 - Big Switch"),
+        lambda state: can_use_ability(state, world, 'Light'))
+    set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
+        lambda state: can_light_fuse(state,world)
+        and can_use_ability(state, world,'Hi-Jump')
+        )
+    set_rule(world.get_location("Yogurt Yard 6 - Big Switch"),
+            lambda state: can_use_ability(state, world, 'Hammer'))
+    
+    set_rule(world.get_location("Orange Ocean 1 - Big Switch"), #Break metal block below
+        lambda state: can_use_any_ability(state, world, ('Wheel','Hammer','Stone')))
+    set_rule(world.get_location("Orange Ocean 2 - Big Switch"),
+        lambda state: can_pound_stake(state,world))
+    set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
+        lambda state: can_use_ability('Laser') and (
+        can_destroy_metal_side(state,world)
+        or can_use_ability(state,world,'Throw')
+        or Advanced_Logic) #Double star
+        )
+    set_rule(world.get_location("Orange Ocean 5 - Big Switch"),
+        lambda state: can_light_fuse(state,world))
+    set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
+            lambda state: can_use_ability(state,world,'Burning')
+            or can_use_ability(state,world,'UFO')
+            or (Advanced_Logic and can_use_any_ability(state,world,('Wheel','Hammer')))
+    )
+    set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. Most complex logic of any location
+            lambda state: can_use_ability(state,world,'Hammer') or (
+                can_use_ability(state,world,'Burning') and (
+                        can_use_any_ability(state,world,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol'))
+                        or Advanced_Logic and can_use_any_ability(state,world,('Fire','Ice','Needle'))
+                )
+            )
+    )
+
+    ##Arenas Logic
+    for w in WORLD_NAMES_INDEXED[1:-1]: #only worlds 2-6 have Arenas
+        set_rule(world.get_location(f"{w} - Arena Clear"),
+                lambda state: state.has(f'{w} Arena Key', world.player))
+
     
     #Also set the rule for the victory event
     set_rule(world.get_location("The Fountain of Dreams - Nightmare"),
