@@ -56,9 +56,9 @@ SIDE_DOORS_PER_WORLD = [
 SIDE_DOOR_MAP = ['Bomb Rally','Air Grind','Quick Draw','Arena','Museum','Warp Station']
 for i in range(len(WORLD_NAMES_INDEXED)):
     for sd in SIDE_DOORS_PER_WORLD[i]:
-        item_name = f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[sd]} Key'
-        ITEM_TABLE_READABLE[item_name] = 200 + (i+1)*10 + int(SIDE_DOOR_MAP[sd])
-
+        item_name = f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[int(sd)-1]} Key'
+        ITEM_TABLE_READABLE[item_name] = 200 + (i+1)*10 + int(sd)
+#print(ITEM_TABLE_READABLE)
 KNIDL_BASE_ID = 2742740
 ITEM_NAME_TO_ID = {
     k:ITEM_TABLE_READABLE[k]+KNIDL_BASE_ID for k in ITEM_TABLE_READABLE.keys()
@@ -124,6 +124,8 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
         itempool.append(world.create_item("Vitality"))
     for k in ITEM_TABLE_READABLE.keys():
         if ITEM_TABLE_READABLE[k] > 50 and ITEM_TABLE_READABLE[k] < 75: #Item is an ability -- in the range of those item ID's
+            itempool.append(world.create_item(k))
+        if ITEM_TABLE_READABLE[k] > 200: #Item is a side door key
             itempool.append(world.create_item(k))
         
 

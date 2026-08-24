@@ -58,6 +58,7 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
         w_current = world.get_region(world_name)
         w_next = world.get_region(WORLD_NAMES_INDEXED[i+1])
-        w_current.connect(w_next,world_name + ' Next Door', lambda state: state.has("Star Rod Piece", world.player, i))
+        w_current.connect(w_next,world_name + ' Next Door', lambda state: state.has("Star Rod Piece", world.player, i+1))
+
 
   

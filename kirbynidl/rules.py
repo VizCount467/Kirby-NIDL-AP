@@ -203,7 +203,8 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     ###BIG SWITCH LOGIC
     #Technically, the 4-6 big switch is free if you know where it is, but no new player would find it without the intended strat
     set_rule(world.get_location("Grape Garden 6 - Big Switch"),
-        lambda state: can_use_ability(state, world, 'Light'))
+        lambda state: state.has("Light", world.player)
+        )
     set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
         lambda state: can_light_fuse(state,world)
         and can_use_ability(state, world,'Hi-Jump')
@@ -216,7 +217,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     set_rule(world.get_location("Orange Ocean 2 - Big Switch"),
         lambda state: can_pound_stake(state,world))
     set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
-        lambda state: can_use_ability('Laser') and (
+        lambda state: can_use_ability(state, world, 'Laser') and (
         can_destroy_metal_side(state,world)
         or can_use_ability(state,world,'Throw')
         or Advanced_Logic) #Double star
@@ -225,7 +226,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
         lambda state: can_light_fuse(state,world))
     set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
             lambda state: can_use_ability(state,world,'Burning')
-            or can_use_ability(state,world,'UFO')
+            or state.has("UFO", world.player)
             or (Advanced_Logic and can_use_any_ability(state,world,('Wheel','Hammer')))
     )
     set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. Most complex logic of any location

@@ -4,7 +4,7 @@ Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by me, V
 
 ## General Structure
 
-All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. ie, you must collect 1 star rod piece to fight the World 1 boss, 2 for the World 2 boss. Collect all 7 Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. 
+All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. ie, you must collect 1 star rod piece to fight the World 1 boss, 2 for the World 2 boss. Collect all 7 Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win.
 
 ## Installation
 
@@ -26,9 +26,9 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
     - Vitality (Max HP Upgrades) - currently fixed at 3 with 3 base HP
 
 ## Features Planned To be Implemented
-- Items
-    - The final victory Condition
 - Death link Support
+- Functional Options as described in the game guide
+- Variable number of Star Rod pieces via options
 
 ## Speculative Features
 
@@ -41,18 +41,18 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin)
 - Enemy Ability Shuffle
+- Option to play as Meta Knight
 - Energy Link Support
+- On-Screen AP Text (via either the nightmare defeated story narration or the label that appears at the top of the screen in each overworld lobby) (maybe the credits too??)
 
 ## Known Bugs and Issues
 
-- As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated
-- The life counter may display incorrectly (ie, 28) after receiving a life from AP, but this self-corrects after loading a new room
+- As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated and the game is reloaded
 - The life counter may be calculated incorrectly sometimes after client awards 1ups? Starts at 3?
-- It may be possible to enter a "locked" overworld door by using fast copy abilities (wheel, hi-jump) - need to test this
-- The Item Sync Counter may not be stored in saveRAM as intended, leading to all received items being awarded on startup. 
+- It is possible to enter a "locked" overworld door just via falling velocity. Need to suck it up and make door locking game-side, not client-side
 - When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
-- The interaction of the client-dependent ability locking with the mix roulette is still unknown -- may need to nullify mixes entirely
-- The interaction of savestates and the various client-dependent game interactions is completely unknown (minor?)
+- Similarly, Kirby can get an "illegal" locked ability from a mix roulette if he swallows immediately (solution to this and above is to go game-side again)
+- The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
 
 ## Latest Updates
 

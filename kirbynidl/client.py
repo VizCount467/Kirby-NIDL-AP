@@ -162,9 +162,11 @@ class KirbyNIDLClient(BizHawkClient):
         self.current_pickup_flag_adr = 0x7BF0
         self.sent_boss_check = False
         self.sent_bigswitch_check = False
+        self.sent_victory_check = False
         self.prev_boss_hp = 0
         self.sent_arena_check = False
         self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
+        self.switches_pressed = False
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -208,9 +210,9 @@ class KirbyNIDLClient(BizHawkClient):
             #logging.debug(f'Screen mod is {screen_mod}')
 
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
-            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game)
+            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game, B (Final Cutscene)
             # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
-            if not screen_mod in (0x5,0x7,0x8,0x9,0xA,0x12,0x13):
+            if not screen_mod in (0x5,0x7,0x8,0x9,0xA,0XB,0x12,0x13):
                 return
             
             # During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
@@ -222,10 +224,13 @@ class KirbyNIDLClient(BizHawkClient):
                 clear_flag_writes = []
                 for world_num, level_count in enumerate(LEVELS_PER_WORLD_INDEX):
                     for offset in range(level_count):
-                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + world_num*6 + offset, [0x2], "IWRAM"))
-
-                for f in IW_SWITCHEXISTS_BITARR:
-                    clear_flag_writes.append((f,[0],"IWRAM"))
+                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + world_num*7 + offset, [0x2], "IWRAM"))
+                #Set Big Switch array (switches pressed) to all True
+                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
+                                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM')
+                                    (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
+                                    ]
+                self.switches_pressed = True
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -237,6 +242,26 @@ class KirbyNIDLClient(BizHawkClient):
                      ]
                 )
                 self.initial_flags_written = True
+
+            #If NOT in a level, set the "switches pressed" state to True
+            if not screen_mod == 0x8 and self.switches_pressed == False:
+                logger.info('Setting big switches to "pressed" state')
+                await bizhawk.write(ctx.bizhawk_ctx, 
+                    [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
+                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM')
+                    (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
+                    ]
+                )
+                self.switches_pressed = True
+            elif screen_mod == 0x8 and self.switches_pressed == True:
+                logger.info('Setting big switches to "unpressed" state')
+                await bizhawk.write(ctx.bizhawk_ctx, 
+                    [(IW_SWITCHEXISTS_BITARR,[0],'IWRAM'),
+                    (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM')
+                    (IW_SWITCHEXISTS_BITARR+2,[0],'IWRAM')
+                    ]
+                )
+                self.switches_pressed = False
 
             # Ability Lock: if Kirby is in a gameplay state, always be checking his "Mouth" value. 
             # If the mouth contains a locked ability, set the Mouth to 0
@@ -368,6 +393,8 @@ class KirbyNIDLClient(BizHawkClient):
                         item_award_id = 6
                     elif current_item == 5: #Vitality
                         item_award_id = 7
+                    elif current_item >= 100: #Door Unlock
+                        item_award_id = 8
 
                     if item_award_id:
                         logger.info(f'attempting to award queued item {current_item}')
@@ -423,6 +450,8 @@ class KirbyNIDLClient(BizHawkClient):
             if not screen_mod == 0x13:
                 self.sent_arena_check = False
                 self.prev_boss_hp = 0
+            if not screen_mod == 0x5: #Always unlock doors when not in the overworld
+                self.door_locked = False
 
                 
             #In-Level Checks
@@ -467,7 +496,7 @@ class KirbyNIDLClient(BizHawkClient):
                     loc_name = None #Technically we don't need to find the location name here, but it's convenient for logging 
                     try:
                         loc_name = LOCATION_ID_TO_NAME[str(loc_id)]
-                    except IndexError:
+                    except KeyError:
                         logger.warning(f'Attempted to find location name for nonexistent id: {loc_id_readable} (readable). Pass')
                     if loc_name: 
                         logger.info(f'Attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
@@ -491,6 +520,16 @@ class KirbyNIDLClient(BizHawkClient):
                         "locations": [loc_id]
                     }])
                     self.sent_boss_check = True
+                    
+            ##Victory  -- look for the final cutscene BGM
+            if screen_mod == 0xB and not self.sent_victory_check:
+                logger.info('Detected Nightmare Defeated Game End Cutscene')
+                logger.info(f'Attempting to send Victory Event')
+                await ctx.send_msgs([{
+                    "cmd": "StatusUpdate",
+                    "status": ClientStatus.CLIENT_GOAL
+                }])
+                self.sent_victory_check = True
 
             #Big Switch Checks -- look for a specific screen mod        
             if screen_mod == 0x9 and not self.sent_bigswitch_check:
@@ -502,7 +541,7 @@ class KirbyNIDLClient(BizHawkClient):
                 world_num = int.from_bytes(world_numb) + 1
                 level_num = int.from_bytes(level_numb) + 1
                 loc_id = int(KNIDL_BASE_ID + world_num*100 + level_num*10 + 9) #Pattern is WL9
-                logger.info(f'Attempting to send Boss check from World {world_num}')
+                logger.info(f'Attempting to send Big Switch check from World {world_num}, level {level_num}, id {KNIDL_BASE_ID + world_num*100 + level_num*10 + 9}')
                 await ctx.send_msgs([{
                     "cmd": "LocationChecks",
                     "locations": [loc_id]

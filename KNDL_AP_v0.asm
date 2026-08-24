@@ -133,7 +133,8 @@ FreeROM_ClientCheck:
     beq @@Set_Ability_SFX ;Control byte 6 = Copy Ability Unlock
     cmp r0, #0x7
     beq @@Set_Vitality_SFX ;Control byte 7 = Vitality Unlock
-
+    cmp r0, #0x8
+    beq @@Set_DoorUnlock_SFX ;Control byte 8 = Door Key Unlock
 
 @@Finally_Call_Heal:
     mov r0, #0x1
@@ -176,6 +177,15 @@ FreeROM_ClientCheck:
     mov lr, r1
     ;Set r0 to correct SFX value
     mov r0, #0x84
+    ;Call SFX function
+    b @@Call_Play_SFX
+
+@@Set_DoorUnlock_SFX:
+    ;Assign custom code location to the lr to get correct jumpback (quasi-bl)
+    ldr r1, =@@MakeUp_and_Resume_OGFunction+1
+    mov lr, r1
+    ;Set r0 to correct SFX value
+    mov r0, #0x7A
     ;Call SFX function
     b @@Call_Play_SFX
 
