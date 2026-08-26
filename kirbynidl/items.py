@@ -101,7 +101,12 @@ def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
         classification = ItemClassification.useful
     elif name == 'Sleep':
         classification = ItemClassification.trap
-    else:
+    elif 'Key' in name:
+        if 'Arena' in name: #Only Arena keys are progression, Minigames are fluff, Museums and Warp Stations aren't all that useful
+            classification = ItemClassification.progression
+        else:
+            classification = ItemClassification.filler
+    else: #Abilities and Star Rod
         classification = ItemClassification.progression
     #note that you can assign two classifications at once with "|" like this, useful in logic (mainly useful + prog or useful + filler)
     #In Kirby NIDL, all abilities will be useful, but technically not all will be prog. All will be marked prog anyway

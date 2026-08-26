@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .world import KirbyNIDLWorld
 
 from .locations import LOCATION_NAME_TO_ID
-from .items import ITEM_NAME_TO_ID
+from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
@@ -22,70 +22,13 @@ logger.setLevel(logging.INFO)
 KNIDL_BASE_ID = 2742740
 KIRBY_BASE_HP = 3
 
-
-
-#Table of door coordinates (XY of left block) (doors are 2x1 blocks) 
-#If kirby is in front of the door blocks, the lock byte will be set. 
-#Only World 1 for now
-#If we enable locking side doors, level doors, define this dict in parts with ref to options
-#also maybe abstract the world to an additional layer to make this a list of dicts or something?
-OW_WXY_TO_DOOR_NAME = {
-    # (0,0x6,0x10) : 'Vegetable Valley 1 Level', ##commented out until level keys are implemented (if ever)
-    # (0,0xE,0x12) : 'Vegetable Valley 2 Level',
-    # (0,0x13,0xC) : 'Vegetable Valley 3 Level',
-    # (0,0x18,0xF) : 'Vegetable Valley 4 Level',
-    (0,0x1B,0x7) : 'Vegetable Valley Boss',
-    (0,0xA,0xD) : 'Vegetable Valley Bomb Rally',
-    (0,0xE,0x9) : 'Vegetable Valley Museum',
-    (0,0x1B,0x3) : 'Vegetable Valley Warp Station',
-
-    (1,0x6,0x6) : 'Ice Cream Island Air Grind',
-    (1,0x15,0xE) : 'Ice Cream Island Bomb Rally',
-    (1,0x17,0x4) : 'Ice Cream Island Museum',
-    (1,0x1E,0x6) : 'Ice Cream Island Arena',
-    (1,0x28,0xD) : 'Ice Cream Island Warp Station',
-    (1,0x2B,0x6) : 'Ice Cream Island Boss',
-
-    (2,0xC,0x28) : 'Butter Building Arena',
-    (2,0x2,0x1B) : 'Butter Building Bomb Rally',
-    (2,0xC,0x12) : 'Butter Building Quick Draw',
-    (2,0x2,0xD) : 'Butter Building Air Grind',
-    (2,0xC,0x9) : 'Butter Building Warp Station',
-    (2,0x7,0x6) : 'Butter Building Boss',
-
-    (3,0x3,0x8) : 'Grape Garden Bomb Rally',
-    (3,0xC,0x3) : 'Grape Garden Quick Draw',
-    (3,0x11,0xE) : 'Grape Garden Museum',
-    (3,0x1C,0xF) : 'Grape Garden Arena',
-    (3,0x2B,0x8) : 'Grape Garden Warp Station',
-    (3,0x2B,0x4) : 'Grape Garden Boss',
-
-    (4,0x2,0xC) : 'Yogurt Yard Bomb Rally',
-    (4,0xA,0x10) : 'Yogurt Yard Air Grind',
-    (4,0x15,0x4) : 'Yogurt Yard Museum',
-    (4,0x1A,0xE) : 'Yogurt Yard Arena',
-    (4,0x24,0x4) : 'Yogurt Yard Quick Draw',
-    (4,0x2B,0xD) : 'Yogurt Yard Warp Station',
-    (4,0x2A,0x8) : 'Yogurt Yard Boss',
-
-    (5,0x7,0xB) : 'Orange Ocean Museum',
-    (5,0xD,0x3) : 'Orange Ocean Arena',
-    (5,0x12,0x14) : 'Orange Ocean Bomb Rally',
-    (5,0x16,0x6) : 'Orange Ocean Air Grind',
-    (5,0x24,0x10) : 'Orange Ocean Quick Draw',
-    (5,0x26,0x3) : 'Orange Ocean Warp Station',
-    (5,0x2C,0x8) : 'Orange Ocean Boss',
-
-    (6,0x5,0x6) : 'Rainbow Resort Bomb Rally',
-    (6,0x1B,0x3) : 'Rainbow Resort Warp Station',
-    (6,0xF,0x5) : 'Rainbow Resort Boss',
-
-}
-#Flesh out the above table with the right block of each door, and many surrounding blocks (including diagonals)
-for k in list(OW_WXY_TO_DOOR_NAME.keys()):
-    for dx in [-3,-2,-1,0,1,2,3,4]:
-        for dy in [-3,-2,-1,0,1,2,3]:
-            OW_WXY_TO_DOOR_NAME[(k[0], k[1]+dx, k[2]+dy)] = OW_WXY_TO_DOOR_NAME[k]
+#Table (list) of what index in each world's bit array each door type corresponds to
+DOOR_NAME_TO_BIT_MAP = [
+    'Prev', #The prev door will never be locked
+    'Level 1','Level 2','Level 3','Level 4','Level 5','Level 6', #levels 1-6 = index 1-6
+    'Bomb Rally','Air Grind','Quick Draw', #Minigames 7-9 in order of first appearence
+    'Arena','Museum','Unused1','Unused2','Warp Station','Boss' #A is for Arena, followed by B Museum. Warp Station E and Boss F are last
+]
 
 #Table for item ID to name (since AP client sends ID's not names, it seems)
 ITEM_ID_TO_NAME = dict()
@@ -125,7 +68,7 @@ OW_MOD_ADR = 0x23B8
 LEVEL_MOD_ADR = 0x1F20
 ROOM_MOD_ADR = 0x2468
 IW_CLEAR_FLAGS_START = 0x2400 
-IW_SWITCHEXISTS_BITARR = [0x23C8, 0x23C9, 0x23CA]
+IW_SWITCHEXISTS_BITARR = 0x23C8 #, 0x23C9, 0x23CA
 KIRBY_X_ADR = 0x23CC
 KIRBY_Y_ADR = 0x2388
 MOUTH_ADR = 0x217B
@@ -133,6 +76,7 @@ BOSS_HP_ADR = 0x3A08
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
 ITEM_AWARD_ADR = 0x78A8
+DOOR_LOCK_BITARR = 0x78B0 #+2,4,6 for each world's doors
 
 
 class KirbyNIDLClient(BizHawkClient):
@@ -143,10 +87,16 @@ class KirbyNIDLClient(BizHawkClient):
     def __init__(self):
         super().__init__()
 
+        #Obtain a list of every door that can possibly be locked at startup (then remove them as items come in)
+        self.locked_door_names = []
+        for i in range(len(WORLD_NAMES_INDEXED)):
+            self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} Boss')
+            for sd in SIDE_DOORS_PER_WORLD[i]:
+                self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[int(sd)-1]}') #ie, "Vegetable Valley Museum"
+
         #Internal data setup
         self.last_received_index = 0 #index of last item received; needed so we don't apply filler pickup items multiple times
         self.detected_goal_game = False #flag to prevent repeated send of level clear check during a goal game
-        self.ow_wxy_to_locked_doors = copy.copy(OW_WXY_TO_DOOR_NAME)
         self.door_locked = False
         self.initial_flags_written = False
         self.init_startup = True
@@ -163,7 +113,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_boss_check = False
         self.sent_bigswitch_check = False
         self.sent_victory_check = False
-        self.prev_boss_hp = 0
+        self.prev_boss_hp = 100
         self.sent_arena_check = False
         self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
         self.switches_pressed = False
@@ -227,13 +177,15 @@ class KirbyNIDLClient(BizHawkClient):
                         clear_flag_writes.append((IW_CLEAR_FLAGS_START + world_num*7 + offset, [0x2], "IWRAM"))
                 #Set Big Switch array (switches pressed) to all True
                 clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM')
+                                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
                                     (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
                                     ]
                 self.switches_pressed = True
+                #logger.debug(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
+                #Set Kirby's Max Health
                 logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} segments (initial flag setting)")
                 hp_val = int(self.kirby_max_hp*8)
                 await bizhawk.write(ctx.bizhawk_ctx, 
@@ -248,16 +200,18 @@ class KirbyNIDLClient(BizHawkClient):
                 logger.info('Setting big switches to "pressed" state')
                 await bizhawk.write(ctx.bizhawk_ctx, 
                     [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM')
+                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
                     (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
                     ]
                 )
                 self.switches_pressed = True
+
+            #If IN a level, set the "switches pressed" state to False
             elif screen_mod == 0x8 and self.switches_pressed == True:
                 logger.info('Setting big switches to "unpressed" state')
                 await bizhawk.write(ctx.bizhawk_ctx, 
                     [(IW_SWITCHEXISTS_BITARR,[0],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM')
+                    (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM'),
                     (IW_SWITCHEXISTS_BITARR+2,[0],'IWRAM')
                     ]
                 )
@@ -308,7 +262,7 @@ class KirbyNIDLClient(BizHawkClient):
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
 
-                #Loop through all items to check for all the client-side locks: door key, ability unlock items, and vitality upgrades
+                #Loop through all items to check for all the client-made locks: door key, ability unlock items, and vitality upgrades
                 for received_item in ctx.items_received:
                     received_item_name = ITEM_ID_TO_NAME[received_item.item]
                     received_item_id_readable = received_item.item - KNIDL_BASE_ID
@@ -316,9 +270,9 @@ class KirbyNIDLClient(BizHawkClient):
                     if received_item_name.endswith(' Key'):
                         #Remove the corresponding entry of the Key item from the list of locked doors
                         logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
-                        for k in list(self.ow_wxy_to_locked_doors.keys()):
-                            if self.ow_wxy_to_locked_doors[k] == received_item_name[:-4]:
-                                del self.ow_wxy_to_locked_doors[k]
+                        dn = received_item_name[:-4] #minus Key, ie 'Vegetable Valley Bomb Rally'
+                        if dn in self.locked_door_names:
+                            self.locked_door_names.remove(dn)
 
                     if received_item_id_readable > 50 and received_item_id_readable < 75:
                         ability_id = received_item_id_readable - 50
@@ -343,15 +297,33 @@ class KirbyNIDLClient(BizHawkClient):
                 star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
                 boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
                 logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
-                for k in list(self.ow_wxy_to_locked_doors.keys()):
-                    if self.ow_wxy_to_locked_doors[k] in boss_doors_to_unlock:
-                        del self.ow_wxy_to_locked_doors[k]
+                for dn in boss_doors_to_unlock:
+                    if dn in self.locked_door_names:
+                        self.locked_door_names.remove(dn)
+
+                #based on the doors in the locked door list, calculate what to write to the locked door bit array
+                locked_door_writes = []
+                for i,w in enumerate(WORLD_NAMES_INDEXED):
+                    door_bits = []
+                    for ldn in self.locked_door_names:
+                        if w in ldn:
+                            door_type = ldn.split(w)[1].strip() #Map the door in the locked door list to its index in the bit array
+                            door_bitarr_index = DOOR_NAME_TO_BIT_MAP.index(door_type)
+                            door_bits.append(door_bitarr_index)
+                    door_bitarr = sum(1 << b for b in door_bits) #compile the bit indexes in a single bit array number
+                    assert door_bitarr <= 0xFFFF
+                    door_bitarr_list = [door_bitarr & 0xFF, door_bitarr >> 8] #split the bit array number into a list of two bit numbers, the bigger one second (little-endian)
+                    locked_door_writes.append((DOOR_LOCK_BITARR+2*i, door_bitarr_list, 'IWRAM')) #Write the bit array number to the control panel with correct offset (2 bytes per world)
+                #logger.debug(locked_door_writes)
 
                 #Set the sync counter now that any needed items have been awarded
                 #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
-                logger.info(f'attempting to write new sync counter {self.sync_counter}')
-                await bizhawk.write(ctx.bizhawk_ctx, 
-                    [(sync_adr, [self.sync_counter], "EWRAM")]
+                #Also, write the correct byte string to the locked door bit array 
+                sync_writes = locked_door_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
+                #sync_writes = [(sync_adr, [self.sync_counter], "EWRAM")]
+                logger.info(f'attempting to write new sync counter {self.sync_counter}, and locked door bit array')
+                logger.debug(sync_writes)
+                await bizhawk.write(ctx.bizhawk_ctx, sync_writes
                 )
                 self.init_startup = False
 
@@ -449,7 +421,7 @@ class KirbyNIDLClient(BizHawkClient):
                 self.sent_bigswitch_check = False
             if not screen_mod == 0x13:
                 self.sent_arena_check = False
-                self.prev_boss_hp = 0
+                self.prev_boss_hp = 100
             if not screen_mod == 0x5: #Always unlock doors when not in the overworld
                 self.door_locked = False
 
@@ -534,14 +506,11 @@ class KirbyNIDLClient(BizHawkClient):
             #Big Switch Checks -- look for a specific screen mod        
             if screen_mod == 0x9 and not self.sent_bigswitch_check:
                 logger.info('Detected Big Switch cutscene')
-                (world_numb, level_numb) = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (OW_MOD_ADR, 1, "IWRAM"),   
-                    (LEVEL_MOD_ADR, 1, "IWRAM"),   
-                ])
-                world_num = int.from_bytes(world_numb) + 1
-                level_num = int.from_bytes(level_numb) + 1
-                loc_id = int(KNIDL_BASE_ID + world_num*100 + level_num*10 + 9) #Pattern is WL9
-                logger.info(f'Attempting to send Big Switch check from World {world_num}, level {level_num}, id {KNIDL_BASE_ID + world_num*100 + level_num*10 + 9}')
+                #Note that DURING the big switch cutscene, the level mod adr always changes to 0x10, so don't read it fresh!
+                #Instread, we use the value we already stored for changing the pickup flag window
+                loc_id_readable = int((self.current_world_num+1)*100 + (self.current_level_num+1)*10 + 9) 
+                loc_id = int(KNIDL_BASE_ID + loc_id_readable) #Pattern is WL9
+                logger.info(f'Attempting to send Big Switch check from World {world_num}, level {level_num}, id (readable) {loc_id_readable}')
                 await ctx.send_msgs([{
                     "cmd": "LocationChecks",
                     "locations": [loc_id]
@@ -565,34 +534,6 @@ class KirbyNIDLClient(BizHawkClient):
                     }])
                     self.sent_arena_check = True
                 self.prev_boss_hp = boss_hp
-
-
-            
-            #If Kirby is in the OW, set the door lock control byte if we are near any doors
-            if screen_mod == 0x5:
-                (world_numb, x_coordb, y_coordb) = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (OW_MOD_ADR, 1, "IWRAM"),   
-                    (KIRBY_X_ADR, 2, "IWRAM"),  
-                    (KIRBY_Y_ADR, 2, "IWRAM")   
-                ])
-                world_num = int.from_bytes(world_numb,'little')
-                x_coord_round = int(int.from_bytes(x_coordb,'little')/16)
-                y_coord_round = int(int.from_bytes(y_coordb,'little')/16)
-                logger.debug(f"Client detecting Kirby in the OW Lobby (World {world_num}) with rounded coords {x_coord_round}, {y_coord_round}")
-                if not self.door_locked and \
-                    (world_num,x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
-                    self.door_locked = True
-                    logger.info('attempting to lock door')
-                    await bizhawk.write(ctx.bizhawk_ctx, 
-                                    [(DOOR_LOCK_ADR, [1], "IWRAM")]
-                    )
-                elif self.door_locked and not \
-                    (int.from_bytes(world_numb,'little'),x_coord_round,y_coord_round) in self.ow_wxy_to_locked_doors.keys():
-                    self.door_locked = False
-                    logger.info('attempting to unlock door')
-                    await bizhawk.write(ctx.bizhawk_ctx, 
-                                    [(DOOR_LOCK_ADR, [0], "IWRAM")]
-                    )
 
         except bizhawk.RequestFailedError:
             print('ERROR: bizhawk request failed error')

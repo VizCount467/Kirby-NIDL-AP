@@ -283,8 +283,15 @@ FreeROM_DoorLock:
     ldrh r0, [r2, r1]
     cmp r0, r3
     beq @@Door_Index_Found
-    ;Since the value in the table is the LEFT block of the door, try adding 0x1 to the value and check that also
+    ;Since the value in the table is the LEFT block of the door, we must check all surrounding blocks (block to the right, above, and above-right)
     add r0, r0, #0x1
+    cmp r0, r3
+    beq @@Door_Index_Found
+    sub r0, r0, #0x1
+    sub r0, r0, #0xFF ;subtract by 0x100 (256) in total (255 is max possible literal here)
+    cmp r0, r3
+    beq @@Door_Index_Found
+    sub r0, r0, #0x1
     cmp r0, r3
     beq @@Door_Index_Found
     add r1, r1, #0x2 ;inc counter by 2 (halfword byte size)
@@ -374,7 +381,7 @@ FreeROM_DoorLock:
     .halfword 0x0E15 ;7=Bomb Rally
     .halfword 0x0606 ;8=Air Grind
     .halfword 0x0000 ;9=Quick Draw
-    .halfword 0x0000 ;A=Arena
+    .halfword 0x061E ;A=Arena
     .halfword 0x0417 ;B=Museum
     .halfword 0x0000 ;C=None
     .halfword 0x0000 ;D=None

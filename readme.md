@@ -20,10 +20,15 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - Items
     - Consumable Pickups (Pep Drinks, 1ups, Maxim Tomatoes, Invincibility Candy)
         - Health items are not awarded immediately, but added to a "Bank". HP is automatically restored from the bank as you take damage.
-        - Consumable items are single-use. If you quit and re-open the same save file on the same saved game, you will not receive items received during the last session(the HP bank also resets)
+        - Consumable items are single-use. If you quit and re-open the same save file on the same saved game, you will not receive items received during the last session (the HP bank also resets)
     - "Star Rod Piece" (unlocks world Boss and next world)
     - Unlock Copy Abilities 
-    - Vitality (Max HP Upgrades) - currently fixed at 3 with 3 base HP
+    - Unlock Minigames (Bomb Rally, Air Grind, Quick Draw) and other side doors (Arena, Museum, Warp Station) for each world
+        - NOTE: Doors that are NOT locked behind big switches in the vanilla game, ie the World 1 Museum, start as locked. All possible doors are shuffled in!
+    - Vitality (Max HP Upgrades) - currently fixed at 3 upgrades with 3 Max HP to start
+        - Vitality pieces also affect the amount of HP you get from consumables. 
+            - Pep Drinks give 1 HP at 3 Max HP or lower, 2 HP otherwise
+            - Maxim Tomatos give N-1 HP, where N is the Max HP
 
 ## Features Planned To be Implemented
 - Death link Support
@@ -34,14 +39,12 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 
 - Locations
     - Win minigames in specific worlds
-
 - Items
-    - Unlock individual levels
-
+    - Unlock individual levels (complicates ability logic)
 - Kirby Palette changer (implemented in other randomizers of the game)
-- Level and/or World Shuffle (not sure where to even begin)
-- Enemy Ability Shuffle
-- Option to play as Meta Knight
+- Level and/or World Shuffle (not sure where to even begin) (also complicates ability logic)
+- Enemy Ability Shuffle (immensely complicates ability logic)
+- Option to play as Meta Knight (Kirby steps in at final boss? Stop at Dedede?)
 - Energy Link Support
 - On-Screen AP Text (via either the nightmare defeated story narration or the label that appears at the top of the screen in each overworld lobby) (maybe the credits too??)
 
@@ -62,5 +65,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - 8/13/26: Added (untested) big switch detection logic. Attempted to fix EVERY FRAME door SFX issue. Added (soon to be useless) coordinate logic for in-level pickups
 - 8/14/26: Overhauled item detection to use collection flags in RAM rather than coordinates. Added (untested) Arena clear detection
 - 8/20/26: Add full-game locations, items and logic rules
+- 8/26/26: Overhaul Door locking system to go in-game instead of client side. Debug Big Switch Checks
 
 

@@ -13,4 +13,4 @@ For current in-progress build: Run Archipelago from Source, add Kirby Nightmare 
 
 ## Switching Rooms
 
-If your room switches, you must manually change the server port in the emu client and hit "connect" again.
+If your room switches, you must manually change the server port in the AP client and hit "connect" again.
