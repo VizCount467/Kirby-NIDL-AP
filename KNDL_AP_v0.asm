@@ -3,8 +3,6 @@
 ;Check for doors locked/unlocked
 ;Detect Items (1ups, tomatos and pep brews)
 ;Apply Items
-;The intent is to use this patched ROM with a simplified, POC version of the KNDL client
-;STATUS: ???
 
 .gba
 .open "KNDL/KNDL_AP_v0.gba", 0x08000000
@@ -19,6 +17,7 @@
 .definelabel DoorLockSFXControl, 0x030078A3
 .definelabel ItemAwardControlByte, 0x030078A8
 .definelabel HealCounter, 0x030078A9
+.definelabel DoorLock_ControlPanel, 0x030078B0
 
 .definelabel ScreenModifier, 0x030023D8
 .definelabel Max_Health_EW, 0x02005580
@@ -39,6 +38,8 @@
 .definelabel DoorHandlerEnd, 0x08025008 
 .definelabel DoorHandlerStart, 0x08024E56 
 .definelabel DoorID, 0x02000030
+
+.definelabel WorldLevel_Modifier, 0x030023EC
 
 
 ;All functions below end with bx rN, so set lr before calling them
@@ -78,7 +79,7 @@
     ;Need to ldr and use bx because it's too far for b. Also +1 to keep the interpreter in thumb mode, or something
     ldr r2, =FreeROM_DoorLock+1 ;r2 should be doing nothing here
     bx r2
-    .pool ; see note on .pool below
+    .pool 
 
 
 
@@ -258,14 +259,61 @@ FreeROM_DoorLock:
     mov r0, #0xFF
     strb r0,[r1]
 
-    ;fulfill the OG function: set r2 to 0 just in case
-    mov r2,#0x0
+    ;Read Kirby's coordinates, floor round to nearest block, and combine in a single halfword
+    ldr r1, =Kirby_Xpos_IW
+    ldrh r0, [r1]
+    lsr r2, r0, 4
+    ldr r1, =Kirby_Ypos_IW
+    ldrh r0, [r1]
+    lsr r0, r0, 4
+    lsl r3, r0, 8
+    add r3, r2, r3 ;halfword code for kirby's current coords now set at r3
 
-    ;Load the control byte to r0 and compare.
-    ldr r1, =DoorLockControlByte
-    ldrb r0,[r1]
-    cmp r0,#0x0
-    beq @@GoToDoorHandlerStart  ;if 0 (door unlocked), go back to OG function.
+    ;Set index pointer r2 to the correct spot in the coordinate table based on the world number
+    ;This table is 1 halfword for each door, each world taking up 32 (0x20) bytes
+    ldr r1, =WorldLevel_Modifier
+    ldrb r0, [r1]
+    lsl r0, r0, 5 ;
+    ldr r1, =@@Door_XY_Table
+    add r2, r1, r0
+
+    ;Iterate counter r1 through the entire world's door coords, stopping when we get a match
+    mov r1, #0x0
+@@Door_Coord_Loop:
+    ldrh r0, [r2, r1]
+    cmp r0, r3
+    beq @@Door_Index_Found
+    ;Since the value in the table is the LEFT block of the door, try adding 0x1 to the value and check that also
+    add r0, r0, #0x1
+    cmp r0, r3
+    beq @@Door_Index_Found
+    add r1, r1, #0x2 ;inc counter by 2 (halfword byte size)
+    cmp r1, #0x20 ;check if overflow (32 bytes / 16 halfwords)
+    bhi @@GoToDoorHandlerStart ;overflowed table without finding a match; just let kirby through the door by default
+    b @@Door_Coord_Loop
+
+    ;Read the bit corresponding to the located door from the correct control panel address
+    ;In this control panel, each world gets 16 bits (2 bytes)
+@@Door_Index_Found:
+    lsr r1, #0x1 ; divide r1 by 2 since we were counting by 2 before
+    ldr r3, =WorldLevel_Modifier
+    ldrb r2, [r3]
+    lsl r2, r2, 1
+    ldr r3, =DoorLock_ControlPanel
+    ldrh r2, [r3, r2] ;relavent bitarray halfword for the world now in r2
+    ;Following code to test 1 bit given by AI
+    mov r0, #0x1
+    cmp r1, #0x0
+    beq @@door_bit_set
+@@door_shift_loop: ; loop lsl r0 "r1 times", since lsl with a register as the shift amount is invalid
+    lsl r0, r0, #0x1
+    sub r1, #0x1
+    cmp r1, #0x0
+    bne @@door_shift_loop
+@@door_bit_set:
+    tst r2, r0 ;does a bitwise AND, True/False if any bit is 1, apparently
+    beq @@GoToDoorHandlerStart ; Bit is 0, door is UNLOCKED. Play out the function as normal
+    ;Otherwise, check the Lock SFX
 
     ;Check the Door Lock Control Panel Var so that the SFX doesn't play EVERY FRAME
     ldr r1, =DoorLockSFXControl
@@ -285,13 +333,143 @@ FreeROM_DoorLock:
     bx r3
 
 @@Continue_Post_LockSFX:
+    mov r2,#0x0 ;fulfill the OG function: set r2 to 0 just in case
     mov r0,#0x0 ;If 1, set r0 to 0 (door handler output) and jump to the end of the door handler function
     ldr r1, =DoorHandlerEnd+1 ;+1, see note above
     bx r1
 
 @@GoToDoorHandlerStart:
+    mov r2,#0x0 ;fulfill the OG function: set r2 to 0 just in case
     ldr r1, =DoorHandlerStart+1
     bx r1
+
+@@Door_XY_Table:
+    ;;Because of little-endian-ness, I'm pretty sure these must be listed out as YYXX (since we made Y the higher digits)
+    ;;World 1
+    .halfword 0x0000 ;0=prev
+    .halfword 0x1006 ;1=level 1
+    .halfword 0x120E ;2=level 2
+    .halfword 0x0C13 ;3=level 3
+    .halfword 0x0F18 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0D0A ;7=Bomb Rally
+    .halfword 0x0000 ;8=Air Grind
+    .halfword 0x0000 ;9=Quick Draw
+    .halfword 0x0000 ;A=Arena
+    .halfword 0x090E ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x031B ;E=Warp Station
+    .halfword 0x071B ;F=Boss/next
+
+    ;;World 2
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0E15 ;7=Bomb Rally
+    .halfword 0x0606 ;8=Air Grind
+    .halfword 0x0000 ;9=Quick Draw
+    .halfword 0x0000 ;A=Arena
+    .halfword 0x0417 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x0D28 ;E=Warp Station
+    .halfword 0x062B ;F=Boss/next
+
+    ;;World 3
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0000 ;7=Bomb Rally
+    .halfword 0x0D02 ;8=Air Grind
+    .halfword 0x120C ;9=Quick Draw
+    .halfword 0x280C ;A=Arena
+    .halfword 0x1B02 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x090C ;E=Warp Station
+    .halfword 0x0607 ;F=Boss/next
+
+    ;;World 4
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0803 ;7=Bomb Rally
+    .halfword 0x0000 ;8=Air Grind
+    .halfword 0x030C ;9=Quick Draw
+    .halfword 0x0F1C ;A=Arena
+    .halfword 0x0E11 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x082B ;E=Warp Station
+    .halfword 0x042B ;F=Boss/next
+
+    ;;World 5
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0C02 ;7=Bomb Rally
+    .halfword 0x100A ;8=Air Grind
+    .halfword 0x0424 ;9=Quick Draw
+    .halfword 0x0E1A ;A=Arena
+    .halfword 0x0415 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x0D2B ;E=Warp Station
+    .halfword 0x082A ;F=Boss/next
+
+    ;;World 6
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x1412 ;7=Bomb Rally
+    .halfword 0x0616 ;8=Air Grind
+    .halfword 0x1024 ;9=Quick Draw
+    .halfword 0x030D ;A=Arena
+    .halfword 0x0B07 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x0326 ;E=Warp Station
+    .halfword 0x082C ;F=Boss/next
+
+    ;;World 7
+    .halfword 0x0000 ;0=prev
+    .halfword 0x0000 ;1=level 1
+    .halfword 0x0000 ;2=level 2
+    .halfword 0x0000 ;3=level 3
+    .halfword 0x0000 ;4=level 4
+    .halfword 0x0000 ;5=level 5
+    .halfword 0x0000 ;6=level 6
+    .halfword 0x0605 ;7=Bomb Rally
+    .halfword 0x0000 ;8=Air Grind
+    .halfword 0x0000 ;9=Quick Draw
+    .halfword 0x0000 ;A=Arena
+    .halfword 0x0000 ;B=Museum
+    .halfword 0x0000 ;C=None
+    .halfword 0x0000 ;D=None
+    .halfword 0x031B ;E=Warp Station
+    .halfword 0x050F ;F=Boss/next
 
     ;this .pool instruction is required to correctly parse the ldr instructions when the value is 32 bits 
     ;(normally instructions are 16 bits)
