@@ -1,19 +1,24 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the in-progress Kirby Nightmare in Dream Land Archipelago implementation project (developer VizCount). This document should contain all the necessary information to understand the alterations to the game, the options, and where development currently is.
+Welcome to the in-progress Kirby Nightmare in Dream Land Archipelago implementation project (developer VizCount). This document should contain all the necessary information to understand how to play, the alterations made to the base game, and how to use the options.
 
 
 ## General Information
 
-The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. For example, you must obtain 2 pieces of the Star Rod before fighting Paint Roller in World 2. You must have all 7 to enter the Fountain of Dreams and win. Specifically, game clear status is granted upon viewing the end-of-game cutscene/narration following the moon explosion.  
+The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. For example, you must obtain 2 pieces of the Star Rod before fighting the World 2 Boss. You must have all 7 pieces to enter the Fountain of Dreams and win. Specifically, game clear status is granted upon viewing the moon explosion cutscene following defeat of the final boss.  
 
-Clearing every normal level, boss, and Arena challenge will grant a check, as well as every Big Switch. By default, every food item (Pep Drink and Maxim Tomato) and 1up in normal levels is also a check. Maxim tomatos and 1ups given in other minigames besides Arenas are NOT checks. 
+Clearing every normal level, boss, and Arena challenge will grant a check, as well as every Big Switch. Every food item and 1up in normal levels is also a check. Maxim tomatoes given in arenas are not checks (only clearing the Arena itself is), and 1ups given out in minigames are NOT checks. 
 
-Kirby cannot obtain any copy abilities until that copy ability is unlocked via Archipelago. Kirby also begins with a reduced number of max health segments, with more unlockable via AP items. Kirby may also receive Pep Drink, Maxim Tomatos, 1ups, and invincibility Candy at any time in a level via the AP client. Kirby can only receive these items once per save file (a counter is saved in the file data) (WIP). 
+Kirby cannot obtain any copy abilities until that copy ability is unlocked via Archipelago. Kirby also begins with a reduced number of max health segments, with more unlockable via AP items. Kirby may also receive Pep Drink, Maxim Tomatoes, 1ups, and invincibility Candy at any time in a level via the AP client.
 
 All items, inlcuding client-side unblockers (door keys, unlocked abilities, Star Rod pieces) will play a specific sound effect when received based on their item type. However, you must watch the AP tracker feed to know what specific item was received, as well as what items were sent via location checks. 
 
-## Options (NOT YET IMPLEMENTED/SPECULATIVE)
+Kirby Nightmare in Dreamland automatically saves your progress after every level and boss clear. Big Switches will always appear in levels, even if their location has already been checked. Consumable items will also reappear, but not in the same play session. If you quit and begin a new session, the consumable items awarded in previous sessions will NOT be awarded again. As in, the items awarded by the client DO sync between sessions by use of in-game save RAM. 
+
+Make sure to connect to the client before exiting the title screen / file menu. I canot guarantee anything in this mod is compatible with the vanilla multiplayer features. Finally, use savestates as your own risk!
+
+
+## Options (NOT YET IMPLEMENTED)
 
 - `Number of Star Rod Pieces`:
     Set the number of Star Rod Pieces in the item pool (minimum 7)
@@ -32,11 +37,8 @@ All items, inlcuding client-side unblockers (door keys, unlocked abilities, Star
 - `Lock Bonus Doors`:
     Locks all doors to minigames and other side areas (Arenas, Museums, Warp Star Stations) until the correponding key is obtained. Adds Bonus door keys to the item pool
 
-- `Lock Copy Abilities`:
-    If switched to False, unlocks all copy abilities from the start of the game
-
 - `Randomize Pickups`:
-    If switched to False, food items and 1ups are no longer checks. May not be compatible with item-heavy settings, i.e. keys. 
+    If switched to False, food items and 1ups are no longer checks. However, they may still be awarded as filler items. May not be compatible with some settings. 
 
 - `Starting Vitality`:
     Number of health segments Kirby starts the game with. Can be any number from 1-6.

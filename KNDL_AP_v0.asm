@@ -279,6 +279,7 @@ FreeROM_DoorLock:
 
     ;Iterate counter r1 through the entire world's door coords, stopping when we get a match
     mov r1, #0x0
+    push {r4} ;Need one more free register here
 @@Door_Coord_Loop:
     ldrh r0, [r2, r1]
     cmp r0, r3
@@ -287,8 +288,9 @@ FreeROM_DoorLock:
     add r0, r0, #0x1
     cmp r0, r3
     beq @@Door_Index_Found
-    sub r0, r0, #0x1
-    sub r0, r0, #0xFF ;subtract by 0x100 (256) in total (255 is max possible literal here)
+    mov r4, #0xFF
+    sub r0, r0, r4
+    sub r0, r0, #0x1 ;subtract by 0x100 (256) total 
     cmp r0, r3
     beq @@Door_Index_Found
     sub r0, r0, #0x1
@@ -340,12 +342,14 @@ FreeROM_DoorLock:
     bx r3
 
 @@Continue_Post_LockSFX:
+    pop {r4} ;we used r4 in the door loop
     mov r2,#0x0 ;fulfill the OG function: set r2 to 0 just in case
     mov r0,#0x0 ;If 1, set r0 to 0 (door handler output) and jump to the end of the door handler function
     ldr r1, =DoorHandlerEnd+1 ;+1, see note above
     bx r1
 
 @@GoToDoorHandlerStart:
+    pop {r4}
     mov r2,#0x0 ;fulfill the OG function: set r2 to 0 just in case
     ldr r1, =DoorHandlerStart+1
     bx r1

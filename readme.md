@@ -1,14 +1,14 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by me, VizCount. This is currently a work in progress and is not close to being a fully functional apworld. Feel free to watch my progress in updates to this readme file, or contact me on the Archieplago Discord sever.
+Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by VizCount. This game is currently PLAYABLE, but not yet finalized for release -- consider it in an "alpha" state. Development is ongoing, and any updates are summarized at the bottom of this readme file, as well as currently known bugs/issues.  
 
 ## General Structure
 
-All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. ie, you must collect 1 star rod piece to fight the World 1 boss, 2 for the World 2 boss. Collect all 7 Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win.
+All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. ie, you must collect 1 star rod piece to fight the World 1 boss, 2 for the World 2 boss. Collect all 7 Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See the guide in the "docs" folder for more detailed game information. 
 
 ## Installation
 
-Place the kirbynidl folder in your Archipelago worlds directory and run AP from source. Youl will also need to place a US Kirby Nightmare in Dreamland ROM in your main Archipelago directory with the correct file name if not prompted by the patch sequence. Other than Source, I can't guarantee any other setup will work yet. 
+Place the kirbynidl folder in your Archipelago worlds directory and run Archipelago from source. You will also need to place a US Kirby Nightmare in Dreamland ROM in your main Archipelago directory with the correct file name if not prompted by the patch sequence. Other than Source, I can't guarantee any other setup will work yet. Check the "setup_en" file in the "docs" folder for an alternative instllation summary. 
 
 ## Features Currently Implemented
 - Locations
@@ -30,10 +30,9 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
             - Pep Drinks give 1 HP at 3 Max HP or lower, 2 HP otherwise
             - Maxim Tomatos give N-1 HP, where N is the Max HP
 
-## Features Planned To be Implemented
+## Features Planned To be Implemented Before Release
 - Death link Support
 - Functional Options as described in the game guide
-- Variable number of Star Rod pieces via options
 
 ## Speculative Features
 
@@ -51,11 +50,11 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 ## Known Bugs and Issues
 
 - As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated and the game is reloaded
-- The life counter may be calculated incorrectly sometimes after client awards 1ups? Starts at 3?
-- It is possible to enter a "locked" overworld door just via falling velocity. Need to suck it up and make door locking game-side, not client-side
 - When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
 - Similarly, Kirby can get an "illegal" locked ability from a mix roulette if he swallows immediately (solution to this and above is to go game-side again)
+- The Healing / HP Bank system may not work in the final battle
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
+- Sometimes, the state of the overworld may have none of the big switches pressed. Try entering/exiting a level or other overworld lobbies, and this should fix itself (?)
 
 ## Latest Updates
 
@@ -66,5 +65,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run AP from 
 - 8/14/26: Overhauled item detection to use collection flags in RAM rather than coordinates. Added (untested) Arena clear detection
 - 8/20/26: Add full-game locations, items and logic rules
 - 8/26/26: Overhaul Door locking system to go in-game instead of client side. Debug Big Switch Checks
+- 8/28/26: Fix client sync counter bug. Update guide in apworld docs. Other misc bug-squashing.
 
 

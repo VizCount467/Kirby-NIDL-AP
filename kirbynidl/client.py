@@ -225,7 +225,7 @@ class KirbyNIDLClient(BizHawkClient):
                 ])
                 mouth_id = int.from_bytes(mouth_idb)
                 if mouth_id in self.locked_ability_ids:
-                    logger.info(f'Locked mouth id {mouth_id} detected, setting mouth to 0')
+                    logger.debug(f'Locked mouth id {mouth_id} detected, setting mouth to 0')
                     await bizhawk.write(ctx.bizhawk_ctx, 
                                         [(MOUTH_ADR, [0], "IWRAM")]
                     )
@@ -243,8 +243,10 @@ class KirbyNIDLClient(BizHawkClient):
                     (sync_adr, 1, "EWRAM")       
                 ])
                 sync_counter_ingame = int.from_bytes(sync_counterb, "little")
-                logger.info(f'Sync counter according to game RAM is {self.sync_counter}')
-                if sync_counter_ingame <= self.sync_counter: #When the in-game (last registered) sync counter is less than the current items, give the items that were received since
+                logger.info(f'Sync counter according to game RAM is {sync_counter_ingame} (file number {file_number}) (ADR {hex(SYNC_ADR_BASE + file_number*0x100)})')
+                if sync_counter_ingame == 0xFF: #value should start at 0xFF on a new file 
+                    self.sync_counter = 0
+                else:
                     self.sync_counter = sync_counter_ingame
                 #sync counter doesn't match, award items
                 if self.sync_counter != len(ctx.items_received):
@@ -508,9 +510,9 @@ class KirbyNIDLClient(BizHawkClient):
                 logger.info('Detected Big Switch cutscene')
                 #Note that DURING the big switch cutscene, the level mod adr always changes to 0x10, so don't read it fresh!
                 #Instread, we use the value we already stored for changing the pickup flag window
-                loc_id_readable = int((self.current_world_num+1)*100 + (self.current_level_num+1)*10 + 9) 
+                loc_id_readable = int((self.current_world+1)*100 + (self.current_level+1)*10 + 9) 
                 loc_id = int(KNIDL_BASE_ID + loc_id_readable) #Pattern is WL9
-                logger.info(f'Attempting to send Big Switch check from World {world_num}, level {level_num}, id (readable) {loc_id_readable}')
+                logger.info(f'Attempting to send Big Switch check from World {self.current_world+1}, level {self.current_level+1}, id (readable) {loc_id_readable}')
                 await ctx.send_msgs([{
                     "cmd": "LocationChecks",
                     "locations": [loc_id]

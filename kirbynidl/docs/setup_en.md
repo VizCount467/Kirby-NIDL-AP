@@ -9,7 +9,10 @@
 
 ## How to play
 
-For current in-progress build: Run Archipelago from Source, add Kirby Nightmare in Dream Land ROM to the Archipelago directory if not prompted
+For current in-progress build:
+- Run Archipelago from Source (uncompiled Python)
+- Download the "kirbynidl" folder and copy it into the Archipelago "Worlds" directory
+- Add Kirby Nightmare in Dream Land ROM with the name "Kirby Nightmare in Dream Land (USA).gba" to the Archipelago directory if not prompted
 
 ## Switching Rooms
 

@@ -15,7 +15,7 @@ class LockCopyAbilities(Toggle):
     display_name = "Lock Copy Abilities"
 
 class RandomizePickups(Toggle):
-    """Adds all Pep Drinks, Tomatos, and 1ups in normal levels to the location pool"""
+    """Adds all Pep Drinks, Maxim Tomatoes, and 1ups in normal levels to the location pool"""
     display_name = "Randomize Pickups"
 
 class StartingVitality(Range):
