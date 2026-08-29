@@ -53,6 +53,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
 - Similarly, Kirby can get an "illegal" locked ability from a mix roulette if he swallows immediately (solution to this and above is to go game-side again)
 - The Healing / HP Bank system may not work in the final battle
+- Generation may be unoptimized. Gen with this in big games at your own risk!
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
 - Sometimes, the state of the overworld may have none of the big switches pressed. Try entering/exiting a level or other overworld lobbies, and this should fix itself (?)
 
