@@ -18,6 +18,7 @@
 .definelabel ItemAwardControlByte, 0x030078A8
 .definelabel HealCounter, 0x030078A9
 .definelabel DoorLock_ControlPanel, 0x030078B0
+.definelabel Mouthguard_ControlPanel, 0x030078C0
 
 .definelabel ScreenModifier, 0x030023D8
 .definelabel Max_Health_EW, 0x02005580
@@ -40,6 +41,14 @@
 .definelabel DoorID, 0x02000030
 
 .definelabel WorldLevel_Modifier, 0x030023EC
+
+.definelabel Mouth_Get_Hook, 0x0806BE0A
+.definelabel Mouth_Get_End, 0x0806BE46
+.definelabel Mouth_Get_Continue, 0x0806BE1A
+.definelabel Mouth_ADR_IW, 0x0300217B
+
+.definelabel Mix_Change_Hook, 0x080481A2
+.definelabel Mix_Change_Continue, 0x080481B2
 
 
 ;All functions below end with bx rN, so set lr before calling them
@@ -69,7 +78,7 @@
 ;The function we are totally replacing starts with the X position to update in r0, Y in r1
 ;It has no push/pop usage except for a standard bx lr at the end, so keep track of lr
 
-;Hook the puckup handler to skip all behaviour except setting the collection flag and unloading the entity (probably what the last function does...)
+;Hook the pickup handler to skip all behaviour except setting the collection flag and unloading the entity (probably what the last function does...)
 ;This disables the usual behavior of all pickup items, including the Arena rewards. Hence, Arenas now MUST be checks
 .org Pickup_Handler_Skip_Start
     b Pickup_Handler_Skip_End
@@ -79,8 +88,19 @@
     ;Need to ldr and use bx because it's too far for b. Also +1 to keep the interpreter in thumb mode, or something
     ldr r2, =FreeROM_DoorLock+1 ;r2 should be doing nothing here
     bx r2
-    .pool 
+    .pool
 
+;Hook the function that handles changing Kirby's Mouth value to filter abilities
+.org Mouth_Get_Hook
+    ldr r0, = FreeROM_Mouthguard+1
+    bx r0
+    .pool
+
+;Hook the mix roulette incrementing routine to filter abilities there as well
+.org Mix_Change_Hook
+    ldr r1, = FreeROM_Mix_Screen+1
+    bx r1
+    .pool
 
 
 ; ============================
@@ -246,7 +266,93 @@ FreeROM_ClientCheck:
     mov lr, r0
     bx lr ;jump back to whatever called the OG function    
 
-    .pool ;pretty sure each block needs its own .pool
+.pool ;pretty sure each block needs its own .pool
+
+FreeROM_Mouthguard:
+    ;Assuming r1-r3 are also scratch 
+    ;Get the value to be written to the mouth address from EW (ADR currently in r5) into r0
+    ldrb r0, [r5]
+    ;Find the bit value of the corresponding bit in the control panel
+    ldr r2, =Mouthguard_ControlPanel
+    ldr r1, [r2] ;entire bitarray fits in one 4-byte word
+    mov r3, r0 ;copy ability ID to r3; we'll need the value later
+    ;Following code to test 1 bit given by AI
+    mov r2, #0x1
+    cmp r0, #0x0
+    beq @@GoTo_Mouth_Get_End ;If ability ID in r0 is 0, end OG function (should be impossible, the routine doesn't run for ability = 0 = no ability)
+@@mouth_shift_loop: ; loop lsl r2 "r0 times", since lsl with a register as the shift amount is invalid
+    lsl r2, r2, #0x1
+    sub r0, #0x1
+    cmp r0, #0x0
+    bne @@mouth_shift_loop
+
+    ;Test the bit value
+    tst r1, r2 ;does a bitwise AND, True/False if any bit is 1, apparently
+    beq @@Makeup_Mouth_Change ; Bit is 0, ability is UNLOCKED, makeup for the OG function and continue
+@@GoTo_Mouth_Get_End: ;bit is 1, ability is LOCKED. Go to the end of the OG function
+    ldr r1, =Mouth_Get_End+1
+    bx r1
+@@Makeup_Mouth_Change:
+    ldr r0, =Mouth_ADR_IW
+    strb r3, [r0]
+    mov r3, r0 ;The ability ID must be in r0 before jumpback
+    ldr r1, =Mouth_Get_Continue+1
+    bx r1
+
+.pool
+
+FreeROM_Mix_Screen:
+    push {r5}
+    ;Get the mouth address value into r0 like the OG function, just more directly
+    ldr r1, =Mouth_ADR_IW
+    ldrb r0, [r1]
+    mov r5, r0 ;store current value to check if loop went all the way around
+    add r0, #0x1 ;Next value of mouth in r0. Must be tested against the control panel array
+    ;Code below copy-pasted from Mouth Guard Custom code
+    ldr r2, =Mouthguard_ControlPanel
+    ldr r1, [r2] ;entire bitarray fits in one 4-byte word
+@@test_ability_value: ;; ability in r0
+    mov r3, r0 ;;Store the ability value because the process of checking the bit is destructive
+    ;Following code to test 1 bit given by AI
+    cmp r0, #0x0
+    beq @@Try_Next_AbilityID ;If next ability ID is 0 (impossible), just continue to the next value
+    cmp r0, #0x18
+    beq @@Overflow_AbilityID ;Ability ID of 18 is impossible, loop around and keep going
+    cmp r0, r5 ;Ability is the same as the original mouth ID. We must have looped around. Set the starting ability ID as the result (fine since it must have been unlocked to start the mix)
+    beq @@Set_Default_AbilityID
+    mov r2, #0x1
+@@mix_shift_loop: ; loop lsl r2 "r0 times", since lsl with a register as the shift amount is invalid
+    lsl r2, r2, #0x1
+    sub r0, #0x1
+    cmp r0, #0x0
+    bne @@mix_shift_loop
+
+    ;Test the bit value
+    tst r1, r2 ;does a bitwise AND, True/False if any bit is 1, apparently
+    beq @@Makeup_Mix_Change ; Bit is 0, ability is UNLOCKED, makeup for the OG function and send back the value in r3
+@@Try_Next_AbilityID: ;bit is 1, ability is LOCKED. increment the value and go back through the loop again
+    mov r0, r3
+    add r0, #0x1
+    b @@test_ability_value
+@@Overflow_AbilityID: ;Ability value overflowed, reset it to 1 and continue the loop
+    mov r0, #0x1
+    b @@test_ability_value
+@@Set_Default_AbilityID: ;Looped all the way around with all abilities locked. Send back the original ability ID
+    mov r3, r5
+    b @@Makeup_Mix_Change
+@@Makeup_Mix_Change: ;r3 is set as an unlocked mouth address value
+    ldr r1, =Mouth_ADR_IW
+    strb r3, [r1]
+    mov r0, r3 ;final ability ID must be in r0
+    lsl r0, r0, #0x18 ;;Pure superstition, but the OG function does it
+    asr r0, r0, #0x18
+    pop {r5}
+    ldr r1, =Mix_Change_Continue+1
+    bx r1
+
+.pool
+
+
 
 
 FreeROM_DoorLock:
@@ -281,21 +387,34 @@ FreeROM_DoorLock:
     mov r1, #0x0
     push {r4} ;Need one more free register here
 @@Door_Coord_Loop:
+    ;The value in the table is the LEFT block of the door. We must check it and 7 other surrounding blocks to handle all edge cases
     ldrh r0, [r2, r1]
     cmp r0, r3
-    beq @@Door_Index_Found
-    ;Since the value in the table is the LEFT block of the door, we must check all surrounding blocks (block to the right, above, and above-right)
-    add r0, r0, #0x1
-    cmp r0, r3
-    beq @@Door_Index_Found
-    mov r4, #0xFF
-    sub r0, r0, r4
-    sub r0, r0, #0x1 ;subtract by 0x100 (256) total 
-    cmp r0, r3
-    beq @@Door_Index_Found
+    beq @@Door_Index_Found ;left side block in table
     sub r0, r0, #0x1
     cmp r0, r3
-    beq @@Door_Index_Found
+    beq @@Door_Index_Found ; far left, bottom row
+    add r0, r0, #0x2
+    cmp r0, r3
+    beq @@Door_Index_Found ; right side of door, bottom row
+    add r0, r0, #0x2
+    cmp r0, r3
+    beq @@Door_Index_Found ; far right, bottom row
+    mov r4, #0xFF
+    sub r0, r0, r4
+    sub r0, r0, #0x1 ;subtract by 0x100 (256) total to move "up" 1 y block
+    cmp r0, r3
+    beq @@Door_Index_Found ;far right, top row
+    sub r0, r0, #0x1
+    cmp r0, r3
+    beq @@Door_Index_Found ;right side, top row
+    sub r0, r0, #0x1
+    cmp r0, r3
+    beq @@Door_Index_Found ;left side, top row
+    sub r0, r0, #0x1
+    cmp r0, r3
+    beq @@Door_Index_Found ;far left, top row
+
     add r1, r1, #0x2 ;inc counter by 2 (halfword byte size)
     cmp r1, #0x20 ;check if overflow (32 bytes / 16 halfwords)
     bhi @@GoToDoorHandlerStart ;overflowed table without finding a match; just let kirby through the door by default
@@ -304,7 +423,7 @@ FreeROM_DoorLock:
     ;Read the bit corresponding to the located door from the correct control panel address
     ;In this control panel, each world gets 16 bits (2 bytes)
 @@Door_Index_Found:
-    lsr r1, #0x1 ; divide r1 by 2 since we were counting by 2 before
+    lsr r1, #0x1 ; divide r1 by 2 since we were counting by 2 before (087E41CC)
     ldr r3, =WorldLevel_Modifier
     ldrb r2, [r3]
     lsl r2, r2, 1
@@ -320,7 +439,7 @@ FreeROM_DoorLock:
     cmp r1, #0x0
     bne @@door_shift_loop
 @@door_bit_set:
-    tst r2, r0 ;does a bitwise AND, True/False if any bit is 1, apparently
+    tst r2, r0 ;does a bitwise AND, True/False if any bit is 1, apparently (087E41E6)
     beq @@GoToDoorHandlerStart ; Bit is 0, door is UNLOCKED. Play out the function as normal
     ;Otherwise, check the Lock SFX
 
@@ -349,7 +468,7 @@ FreeROM_DoorLock:
     bx r1
 
 @@GoToDoorHandlerStart:
-    pop {r4}
+    pop {r4} ;(087E420C)
     mov r2,#0x0 ;fulfill the OG function: set r2 to 0 just in case
     ldr r1, =DoorHandlerStart+1
     bx r1
@@ -484,7 +603,7 @@ FreeROM_DoorLock:
 
     ;this .pool instruction is required to correctly parse the ldr instructions when the value is 32 bits 
     ;(normally instructions are 16 bits)
-    .pool 
+.pool 
 
 .endarea
 

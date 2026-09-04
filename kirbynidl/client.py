@@ -52,6 +52,17 @@ WORLD_NAMES_INDEXED = [
 ]
 #Number of levels in world {[index]+1}
 LEVELS_PER_WORLD_INDEX = (4,5,6,6,6,6,6)
+#List of all abilities with their in-game ID and bit index. ie, list[1] = fire
+ABILITY_LIST_INDEXED = [
+    '','Fire','Spark','Cutter',
+    'Sword','Burning','Laser','Mike',
+    'Wheel','Hammer','Parasol','Sleep',
+    'Needle','Ice','Freeze','Hi-Jump',
+    'Beam','Stone','Ball','Tornado',
+    'Crash','Light','Backdrop','Throw',
+    'UFO'
+]
+
 
 ##ROM ADDRESSES
 ROM_HEADER_ADR = 0x0A0 #As it is for all GBA games
@@ -76,7 +87,8 @@ BOSS_HP_ADR = 0x3A08
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
 ITEM_AWARD_ADR = 0x78A8
-DOOR_LOCK_BITARR = 0x78B0 #+2,4,6 for each world's doors
+DOOR_LOCK_BITARR = 0x78B0 #+2,4,6 for each world's doors, until W7 at BC
+ABILITY_LOCK_BITARR = 0x78C0
 
 
 class KirbyNIDLClient(BizHawkClient):
@@ -115,7 +127,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_victory_check = False
         self.prev_boss_hp = 100
         self.sent_arena_check = False
-        self.locked_ability_ids = [a for a in range(1,25)] #1-24 inclusive
+        self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.switches_pressed = False
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
@@ -158,9 +170,14 @@ class KirbyNIDLClient(BizHawkClient):
             ])
             screen_mod = int.from_bytes(screen_modb)
             #logging.debug(f'Screen mod is {screen_mod}')
+            
+            #Before anything, reset the init flag if we see the title screen (handles emu refreshes, I think)
+            if screen_mod in (0x3,0x4):
+                self.init_startup = True
+                return 
 
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
-            # For now, we only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game, B (Final Cutscene)
+            #We only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game, B (Final Cutscene)
             # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
             if not screen_mod in (0x5,0x7,0x8,0x9,0xA,0XB,0x12,0x13):
                 return
@@ -217,19 +234,6 @@ class KirbyNIDLClient(BizHawkClient):
                 )
                 self.switches_pressed = False
 
-            # Ability Lock: if Kirby is in a gameplay state, always be checking his "Mouth" value. 
-            # If the mouth contains a locked ability, set the Mouth to 0
-            if screen_mod in (0x5,0x8,0x12,0x13):
-                mouth_idb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (MOUTH_ADR, 1, "IWRAM")       
-                ])
-                mouth_id = int.from_bytes(mouth_idb)
-                if mouth_id in self.locked_ability_ids:
-                    logger.debug(f'Locked mouth id {mouth_id} detected, setting mouth to 0')
-                    await bizhawk.write(ctx.bizhawk_ctx, 
-                                        [(MOUTH_ADR, [0], "IWRAM")]
-                    )
-
             
             #while in a level or the OW, check to see if there are items to award
             if (self.sync_counter != len(ctx.items_received) or self.init_startup) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
@@ -278,9 +282,10 @@ class KirbyNIDLClient(BizHawkClient):
 
                     if received_item_id_readable > 50 and received_item_id_readable < 75:
                         ability_id = received_item_id_readable - 50
-                        logger.info(f'removing lock for Copy Ability {ITEM_ID_TO_NAME[received_item.item]}, ability id {ability_id}')
-                        if ability_id in self.locked_ability_ids:
-                            self.locked_ability_ids.remove(ability_id)
+                        ability_name = ABILITY_LIST_INDEXED[ability_id]
+                        logger.info(f'removing lock for Copy Ability {ability_name}, ability id {ability_id}')
+                        if ability_name in self.locked_abilities:
+                            self.locked_abilities.remove(ability_name)
 
                 #Set kirby's max hp based off the number of vitality items
                 extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
@@ -318,10 +323,23 @@ class KirbyNIDLClient(BizHawkClient):
                     locked_door_writes.append((DOOR_LOCK_BITARR+2*i, door_bitarr_list, 'IWRAM')) #Write the bit array number to the control panel with correct offset (2 bytes per world)
                 #logger.debug(locked_door_writes)
 
+                #Similarly, based on the abilities in the locked abilities list, calculate what to write to the "mouthguard" bit array
+                #This is simpler since the entire thing fits in <=4 bytes
+                ability_bits = [1 if a in self.locked_abilities else 0 for a in ABILITY_LIST_INDEXED] 
+                #because empty string is in the master list but never the locked abilities, the first bit is always 0
+                ability_bits.reverse() #Reverse because the first bit will become the highest "place" in the bitarr
+                ability_bitarr = 0
+                for b in ability_bits:
+                    ability_bitarr = (ability_bitarr << 1) | b #Left shift 1 and "add" the next bit to the tail with bitwise OR
+                assert ability_bitarr <= 0xFFFFFFFF #starting value with all abilities locked should be 0x1FFFFFE (ability "0" is always unlocked)
+                ability_bitarr_list = [ability_bitarr & 0xFF, ability_bitarr >> 8 & 0xFF, ability_bitarr >> 16 & 0xFF, ability_bitarr >> 24 & 0xFF] 
+                #Split the full word into 4 byte numbers, bigger places last because little-endian again
+                ability_lock_writes = [(ABILITY_LOCK_BITARR, ability_bitarr_list, 'IWRAM')]
+
                 #Set the sync counter now that any needed items have been awarded
                 #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
-                #Also, write the correct byte string to the locked door bit array 
-                sync_writes = locked_door_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
+                #Also, write the correct byte string to the locked door bit array and ability lock array
+                sync_writes = locked_door_writes + ability_lock_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
                 #sync_writes = [(sync_adr, [self.sync_counter], "EWRAM")]
                 logger.info(f'attempting to write new sync counter {self.sync_counter}, and locked door bit array')
                 logger.debug(sync_writes)

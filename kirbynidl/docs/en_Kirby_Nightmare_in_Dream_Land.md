@@ -9,7 +9,9 @@ The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star R
 
 Clearing every normal level, boss, and Arena challenge will grant a check, as well as every Big Switch. Every food item and 1up in normal levels is also a check. Maxim tomatoes given in arenas are not checks (only clearing the Arena itself is), and 1ups given out in minigames are NOT checks. 
 
-Kirby cannot obtain any copy abilities until that copy ability is unlocked via Archipelago. Kirby also begins with a reduced number of max health segments, with more unlockable via AP items. Kirby may also receive Pep Drink, Maxim Tomatoes, 1ups, and invincibility Candy at any time in a level via the AP client.
+Kirby cannot obtain any copy abilities until that copy ability is unlocked via Archipelago. Kirby also begins with a reduced number of max health segments, with more unlockable via AP items. Kirby may also receive Pep Drinks, Maxim Tomatoes, 1ups, and invincibility Candy at any time in a level via the AP client. Items will not take affect (and their SFX will not play) until you enter a level. 
+
+Note on mixes: no locked abilities can be obtained through the mix roulette, only unlocked abilities. To initiate a mix roulette, the FIRST enemy inhaled of the combo must have an unlocked copy ability. Then, the mix roulette will cycle through unlocked abilities ONLY. 
 
 All items, inlcuding client-side unblockers (door keys, unlocked abilities, Star Rod pieces) will play a specific sound effect when received based on their item type. However, you must watch the AP tracker feed to know what specific item was received, as well as what items were sent via location checks. 
 

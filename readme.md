@@ -50,8 +50,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 ## Known Bugs and Issues
 
 - As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated and the game is reloaded
-- When Kirby swallows a copy ability that's not unlocked yet, the "ability get" SFX and Kirby pose may still play out, even though no ability is awarded (minor)
-- Similarly, Kirby can get an "illegal" locked ability from a mix roulette if he swallows immediately (solution to this and above is to go game-side again)
 - The Healing / HP Bank system may not work in the final battle
 - Generation may be unoptimized. Gen with this in big games at your own risk!
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
@@ -67,5 +65,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 8/20/26: Add full-game locations, items and logic rules
 - 8/26/26: Overhaul Door locking system to go in-game instead of client side. Debug Big Switch Checks
 - 8/28/26: Fix client sync counter bug. Update guide in apworld docs. Other misc bug-squashing.
+- 9/3/26: Overhaul Ability locking system to go in-game, fixing issues concerning copy abilities and the mix roulette. Fixed door lock edge case
 
 
