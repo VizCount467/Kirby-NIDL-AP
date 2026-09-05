@@ -54,11 +54,21 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
             w.connect(w_names_to_regions[rn], rn + " Door")
 
     #Connect all world regions to each other in sequence with Star Rod Pieces as the requirement
-    #Currently, the number of Star Rod pieces is fixed
+    #Do the Star Rod calculation from options
+    if world.options.req_pieces_prc == 0:
+        req_pieces = world.options.req_pieces_num
+    else:
+        req_pieces = int(world.options.req_pieces_prc/100 * world.options.num_pieces)
+    if req_pieces > world.options.num_pieces:
+        raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
+    if req_pieces < 7:
+        raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+    #Calculate the required pieces for each boss
+    req_pieces_per_boss = int(req_pieces/7)
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
         w_current = world.get_region(world_name)
         w_next = world.get_region(WORLD_NAMES_INDEXED[i+1])
-        w_current.connect(w_next,world_name + ' Next Door', lambda state: state.has("Star Rod Piece", world.player, i+1))
+        w_current.connect(w_next,world_name + ' Next Door', lambda state: state.has("Star Rod Piece", world.player, req_pieces_per_boss*(i+1)))
 
 
   

@@ -30,9 +30,8 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
             - Pep Drinks give 1 HP at 3 Max HP or lower, 2 HP otherwise
             - Maxim Tomatos give N-1 HP, where N is the Max HP
 
-## Features Planned To be Implemented Before Release
+## Features Planned To be Implemented
 - Death link Support
-- Functional Options as described in the game guide
 
 ## Speculative Features
 
@@ -66,5 +65,6 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 8/26/26: Overhaul Door locking system to go in-game instead of client side. Debug Big Switch Checks
 - 8/28/26: Fix client sync counter bug. Update guide in apworld docs. Other misc bug-squashing.
 - 9/3/26: Overhaul Ability locking system to go in-game, fixing issues concerning copy abilities and the mix roulette. Fixed door lock edge case
+- 9/4/26: Add functional options to client and world
 
 

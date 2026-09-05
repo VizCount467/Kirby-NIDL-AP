@@ -115,7 +115,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sync_counter = 0
         self.item_queue = []
         self.hp_bank = 0
-        self.kirby_max_hp = KIRBY_BASE_HP
+        self.kirby_max_hp = None
         self.hp_trickle_timestamp = 0
         self.HEAL_TIME_DELAY = 1 #time to wait in seconds between healing kirby HP segments (otherwise, client will heal kirby before previous HP gain registered)
         self.current_world = -1 #indexed to 0, Vegetable Valley = 0
@@ -129,6 +129,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_arena_check = False
         self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.switches_pressed = False
+        self.req_pieces = None
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -176,6 +177,21 @@ class KirbyNIDLClient(BizHawkClient):
                 self.init_startup = True
                 return 
 
+            #Also before anything, set the required star rod pieces now that we have options access
+            #Do the Star Rod calculation from options
+            if not self.req_pieces:
+                if ctx.slot_date.get('req_pieces_prc') == 0:
+                    req_pieces = ctx.slot_date.get('req_pieces_num')
+                else:
+                    req_pieces = int(ctx.slot_date.get('req_pieces_prc')/100 * ctx.slot_date.get('num_pieces'))
+                if req_pieces > ctx.slot_date.get('num_pieces'):
+                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces greater than amount in pool')
+                if req_pieces < 7:
+                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+                #Calculate the required pieces for each boss
+                self.req_pieces_per_boss = int(req_pieces/7)
+                self.req_pieces = req_pieces
+
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
             #We only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game, B (Final Cutscene)
             # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
@@ -202,9 +218,12 @@ class KirbyNIDLClient(BizHawkClient):
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
-                #Set Kirby's Max Health
-                logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} segments (initial flag setting)")
+                #Set Kirby's Health Bar
+                if not self.kirby_max_hp:
+                    extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
+                    self.kirby_max_hp = ctx.slot_data.get("starting_vitality",3) + extra_hp
                 hp_val = int(self.kirby_max_hp*8)
+                logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} segments (initial flag setting)")
                 await bizhawk.write(ctx.bizhawk_ctx, 
                     [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
                      (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
@@ -302,7 +321,12 @@ class KirbyNIDLClient(BizHawkClient):
 
                 #Look at the number of star rod pieces and unlock the corresponding boss doors
                 star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
-                boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:star_rod_pieces_received]]
+                boss_door_count = min(
+                    int(star_rod_pieces_received / self.req_pieces_per_boss),6 #never unlock more than 6 boss doors in the loop
+                )
+                boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:boss_door_count]]
+                if star_rod_pieces_received >= self.req_pieces:
+                    boss_doors_to_unlock.append('Rainbow Resort Boss') 
                 logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
                 for dn in boss_doors_to_unlock:
                     if dn in self.locked_door_names:

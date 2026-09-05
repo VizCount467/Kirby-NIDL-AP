@@ -5,7 +5,7 @@ Welcome to the in-progress Kirby Nightmare in Dream Land Archipelago implementat
 
 ## General Information
 
-The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. For example, you must obtain 2 pieces of the Star Rod before fighting the World 2 Boss. You must have all 7 pieces to enter the Fountain of Dreams and win. Specifically, game clear status is granted upon viewing the moon explosion cutscene following defeat of the final boss.  
+The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. The number of Star Rod pieces that exist can be adjusted in the options, with a minimum of 7 and maximum of 56. The number of pieces that are absolutely required can be less than the total, also adjustable in the options (7 is still the minimum required). The cumulative piece requirement to fight each boss is evenly distributed (ie 2 for W1, 4 for W2, 6 for W3...) with any remainder going to the final boss requirement. This requirement per boss is NOT displayed in game, so double check your options if unsure. 
 
 Clearing every normal level, boss, and Arena challenge will grant a check, as well as every Big Switch. Every food item and 1up in normal levels is also a check. Maxim tomatoes given in arenas are not checks (only clearing the Arena itself is), and 1ups given out in minigames are NOT checks. 
 
@@ -27,14 +27,18 @@ Make sure to connect to the client before exiting the title screen / file menu. 
 
 - `Number of Required Star Rod Pieces`
     Set the raw number of Star Rod Pieces to unlock the World 7 boss door and complete the game.
-    The requirement for every other world's boss door will be this number divided by 7, rounded down.
-    If the number resulting from the "Percent" option is lower and still meets the minimum 7 requirement, that number will overwrite this option
+    The cumulative requirement for every other world's boss door will be this number divided by 7, rounded down.
 
 - `Percent of Required Star Rod Pieces`
     Set the percent of Star Rod Pieces in the item pool required to unlock the World 7 boss door and complete the game
-    The requirement for every other world's boss door will be the resulting number divided by 7, rounded down.
-    If the "Raw Number" option is lower than the resulting number from this option and still meets the minimum 7 requirement, that number will overwrite this option
+    The cumulative requirement for every other world's boss door will be the resulting number divided by 7, rounded down.
+    Set the value to "0" to use required number. Otherwise, required percent will override this
 
+- `Advanced Logic`
+    Incorporates several difficult, obscure, or unintuitive tricks into item placement logic. Examples include
+        - Using a double star from inhaling two enemies at once to destroy metal blocks
+        - Breaking metal blocks with inconvenient placement using unideal abilities (ie, 6-6 Big Switch with Wheel)
+        - Using various abilities to break blocks through walls or from below in ways would seem impossible (ie, 2-4 laser room with cutter, 7-1 Big Switch with Fire + Burning)
 
 - `Lock Bonus Doors`:
     Locks all doors to minigames and other side areas (Arenas, Museums, Warp Star Stations) until the correponding key is obtained. Adds Bonus door keys to the item pool

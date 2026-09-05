@@ -49,9 +49,6 @@ def can_light_fuse(state,world):
 def can_destroy_metal_side(state,world):
     return can_use_any_ability(state, world, ('Burning','Wheel','Hammer'))
 
-
-Advanced_Logic = True #TODO: replace this with a toggle option later. For now, it's just always on
-
 # In order for AP to generate an item layout that is actually possible for the player to complete,
 # we need to define rules for our Entrances and Locations.
 # NOTE: Regions do not have rules, the Entrances connecting them do!
@@ -74,11 +71,22 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     #Now, since the entrance rules handle all Star Rod Pieces, all we need to set is the logic for ability use
     #And also the boss checks, since those take place in world X, but require X Star Rod pieces
     #These follow a pattern, so we can do them systematically
+    #Calculate the number of required pieces
+    if world.options.req_pieces_prc == 0:
+        req_pieces = world.options.req_pieces_num
+    else:
+        req_pieces = int(world.options.req_pieces_prc/100 * world.options.num_pieces)
+    if req_pieces > world.options.num_pieces:
+        raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
+    if req_pieces < 7:
+        raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+    #Calculate the required pieces for each boss
+    req_pieces_per_boss = int(req_pieces/7)
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
         for loc_name in LOCATION_TABLE_READABLE.keys():
             if 'Boss' in loc_name and world_name in loc_name:
                 set_rule(world.get_location(loc_name),
-                        lambda state: state.has("Star Rod Piece", world.player, i)
+                        lambda state: state.has("Star Rod Piece", world.player, req_pieces_per_boss*(i+1))
                         )
                 break
     #For all other location rules, there are no real patterns. So, everything will just be manual, I guess
@@ -88,45 +96,76 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                  'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer'
              ))
              )
-    set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
-            )) 
-            or state.has('UFO',world.player)
-            or (Advanced_Logic and can_use_ability(state, world,'Throw'))
-            )
-    set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 1)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Beam','Spark','Fire','Cutter','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
-            )))
-    set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 2)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Beam','Spark','Fire','Cutter','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
-            )))
-    set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 3)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Beam','Spark','Fire','Cutter','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
-            )))
+    
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
+                )) 
+                or state.has('UFO',world.player)
+                or can_use_ability(state, world,'Throw')
+                )
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 1)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                ))
+                or can_use_ability('Cutter')
+                )
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 2)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                ))
+                or can_use_ability('Cutter')
+        )
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 3)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                ))
+                or can_use_ability('Cutter')
+                )
+    else:
+        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
+                )) 
+                or state.has('UFO',world.player)
+                )
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 1)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                )))
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 2)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                )))
+        set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 3)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
+                )))
+
     set_rule(world.get_location("Ice Cream Island 4 - 1up (Laser Room 4)"),
             lambda state: can_use_any_ability(state, world, (
                 'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw','Wheel'
             )))
-    set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 1)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or can_use_ability(state,world,'Throw')
-            or Advanced_Logic #Double star
-            )
-    set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 2)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or can_use_ability(state,world,'Throw')
-            or Advanced_Logic
-            )
-    set_rule(world.get_location("Ice Cream Island 5 - 1up (Gordo Guarded)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Burning','Tornado'
-            ))
-            or (Advanced_Logic and can_use_ability(state, world,'Wheel'))
-            )
+    if not world.options.advanced_logic: #following checks can be obtained with no abilities by use of double star
+        set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 1)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
+                )
+        set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 2)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
+                )
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Ice Cream Island 5 - 1up (Gordo Guarded)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Burning','Tornado','Wheel'
+                )))
+    else:
+        set_rule(world.get_location("Ice Cream Island 5 - 1up (Gordo Guarded)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Burning','Tornado'
+                )))
     
     set_rule(world.get_location("Butter Building 5 - Tomato (After Bonkers 1)"),
             lambda state: can_pound_stake(state,world))
@@ -155,40 +194,41 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
             lambda state: can_destroy_metal_side(state,world)
             or can_use_ability(state,world,'Throw')
             )
-    set_rule(world.get_location("Orange Ocean 3 - Pep Drink (Bonkers Room)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or can_use_ability(state,world,'Throw')
-            or Advanced_Logic #Double star
-            )
-    set_rule(world.get_location("Orange Ocean 3 - 1up (Man Overboard!)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or can_use_ability(state,world,'Throw')
-            or Advanced_Logic #Double star
-            )
-    set_rule(world.get_location("Orange Ocean 3 - Tomato (Laser Ball Room)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or can_use_ability(state,world,'Throw')
-            or Advanced_Logic #Double star
-            )
+    if not world.options.advanced_logic: #another set where a double star makes them obtainable without abilities
+        set_rule(world.get_location("Orange Ocean 3 - Pep Drink (Bonkers Room)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
+                )
+        set_rule(world.get_location("Orange Ocean 3 - 1up (Man Overboard!)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
+                )
+        set_rule(world.get_location("Orange Ocean 3 - Tomato (Laser Ball Room)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
+                )
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 1)"),
             lambda state: can_use_ability(state, world, 'Beam'))
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 2)"),
             lambda state: can_use_ability(state, world, 'Beam'))
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 3)"),
             lambda state: can_use_ability(state, world, 'Beam'))
-    set_rule(world.get_location("Orange Ocean 6 - 1up (Upper Path Metal Blocks)"),
-            lambda state: can_destroy_metal_side(state,world)
-            or state.has('UFO',world.player)
-            or Advanced_Logic #Double star
-            )
-    
-    set_rule(world.get_location("Rainbow Resort 1 - 1up (Laser Room)"),
-            lambda state: can_use_any_ability(state, world, (
-                'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw'
-            ))
-            or (Advanced_Logic and can_use_ability(state,world,'Cutter'))
-            or (Advanced_Logic and can_use_ability(state,world,'Wheel'))
-            )
+    if not world.options.advanced_logic: #double star
+        set_rule(world.get_location("Orange Ocean 6 - 1up (Upper Path Metal Blocks)"),
+                lambda state: can_destroy_metal_side(state,world)
+                or state.has('UFO',world.player)
+                )
+    if world.options.advanced_logic: #advanced logic enables cutter and wheel
+        set_rule(world.get_location("Rainbow Resort 1 - 1up (Laser Room)"),
+                lambda state: can_use_any_ability(state, world, (
+                        'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw','Cutter','Wheel'
+                )))
+    else:
+        set_rule(world.get_location("Rainbow Resort 1 - 1up (Laser Room)"),
+                   lambda state: can_use_any_ability(state, world, (
+                           'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw'
+                   )))
+        
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
             lambda state: can_use_ability(state, world, 'Fire'))
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
@@ -216,27 +256,41 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
         lambda state: can_use_any_ability(state, world, ('Wheel','Hammer','Stone')))
     set_rule(world.get_location("Orange Ocean 2 - Big Switch"),
         lambda state: can_pound_stake(state,world))
-    set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
-        lambda state: can_use_ability(state, world, 'Laser') and (
-        can_destroy_metal_side(state,world)
-        or can_use_ability(state,world,'Throw')
-        or Advanced_Logic) #Double star
-        )
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
+                lambda state: can_use_ability(state, world, 'Laser'))
+    else:
+        set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
+                lambda state: can_use_ability(state, world, 'Laser') 
+                and (
+                        can_destroy_metal_side(state,world)
+                        or can_use_ability(state,world,'Throw')
+                ))
     set_rule(world.get_location("Orange Ocean 5 - Big Switch"),
-        lambda state: can_light_fuse(state,world))
-    set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
-            lambda state: can_use_ability(state,world,'Burning')
-            or state.has("UFO", world.player)
-            or (Advanced_Logic and can_use_any_ability(state,world,('Wheel','Hammer')))
-    )
-    set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. Most complex logic of any location
-            lambda state: can_use_ability(state,world,'Hammer') or (
-                can_use_ability(state,world,'Burning') and (
-                        can_use_any_ability(state,world,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol'))
-                        or Advanced_Logic and can_use_any_ability(state,world,('Fire','Ice','Needle'))
+                lambda state: can_light_fuse(state,world))
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
+                        lambda state: can_use_any_ability(state,world,('Burning','Wheel','Hammer'))
+                        or state.has("UFO", world.player)
                 )
-            )
-    )
+        set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. Most complex logic of any location. 
+                        lambda state: can_use_ability(state,world,'Hammer') or (
+                                can_use_ability(state,world,'Burning') and (
+                                        can_use_any_ability(state,world,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol','Fire','Ice','Needle')) #advanced adds fire, ice, needle
+                                )
+                        ))
+    else:
+        set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
+                        lambda state: can_use_ability(state,world,'Burning')
+                        or state.has("UFO", world.player)
+                )
+        set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), 
+                        lambda state: can_use_ability(state,world,'Hammer') or (
+                                can_use_ability(state,world,'Burning') and (
+                                        can_use_any_ability(state,world,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol'))
+                                )
+                        ))
+
 
     ##Arenas Logic
     for w in WORLD_NAMES_INDEXED[1:-1]: #only worlds 2-6 have Arenas
@@ -246,7 +300,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     
     #Also set the rule for the victory event
     set_rule(world.get_location("The Fountain of Dreams - Nightmare"),
-              lambda state: state.has("Star Rod Piece", world.player,7)
+              lambda state: state.has("Star Rod Piece", world.player,req_pieces)
               )
 
 # Finally, we need to set a completion condition for our world, defining what the player needs to win the game.

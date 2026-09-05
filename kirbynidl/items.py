@@ -123,15 +123,25 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
     # Creating items should generally be done via the world's create_item method.
     # First, create a list containing all the items that always exist 
     itempool: list[Item] = []
-    for _ in range(7):
+    for _ in range(world.options.num_pieces):
         itempool.append(world.create_item("Star Rod Piece"))
-    for _ in range(3): #TODO: allow option modification here
+    #Handle vitality computation from options
+    vitality_count = world.options.max_vitality - world.options.starting_vitality
+    if vitality_count < 0:
+        raise Exception('Error in vitality options: Starting Vitality cannot be less than Max Vitality!')
+    for _ in range(vitality_count):
         itempool.append(world.create_item("Vitality"))
     for k in ITEM_TABLE_READABLE.keys():
         if ITEM_TABLE_READABLE[k] > 50 and ITEM_TABLE_READABLE[k] < 75: #Item is an ability -- in the range of those item ID's
-            itempool.append(world.create_item(k))
+            if world.options.lock_copy_abilities: #Create copy ability items if locked in options. else, give them to starting inventory
+                itempool.append(world.create_item(k))
+            else:
+                world.push_precollected(world.create_item(k))
         if ITEM_TABLE_READABLE[k] > 200: #Item is a side door key
-            itempool.append(world.create_item(k))
+            if world.options.lock_bonus_doors: #If side doors are locked, add keys to item pool. Else, add to starting inventory
+                itempool.append(world.create_item(k))
+            else:
+                world.push_precollected(world.create_item(k))
         
 
     #Now find how much filler to place
@@ -145,6 +155,4 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
     itempool += [world.create_filler() for _ in range(n_filler)]
     #Final statement to place in World object
     world.multiworld.itempool += itempool
-    #Apparently, this is also the best place to give the player starting items via this function below
-    #Which we (would) need to do in Kirby here to give the player a starting level (if level keys were implemented)
-    #world.push_precollected(world.create_item("Vegetable Valley 1 Level Key"))
+

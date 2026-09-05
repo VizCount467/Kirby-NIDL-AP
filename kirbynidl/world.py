@@ -69,7 +69,10 @@ class KirbyNIDLWorld(World):
     def fill_slot_data(self) -> Mapping[str, Any]:
         # If you need access to the player's chosen options on the client side, there is a helper for that.
         return self.options.as_dict(
-            "lock_bonus_doors", "lock_copy_abilities", "randomize_pickups", "starting_vitality","max_vitality"
+            "num_pieces", "req_pieces_num", "req_pieces_prc", 
+            "advanced_logic",
+            "lock_bonus_doors", "lock_copy_abilities", 
+            "starting_vitality","max_vitality"
         )
 
     #Is this function being called?
