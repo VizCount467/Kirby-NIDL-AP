@@ -1,0 +1,1 @@
+# The __init__.py file of the test directory should be empty.

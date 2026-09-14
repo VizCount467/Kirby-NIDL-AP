@@ -123,7 +123,7 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
     # Creating items should generally be done via the world's create_item method.
     # First, create a list containing all the items that always exist 
     itempool: list[Item] = []
-    for _ in range(world.options.num_pieces):
+    for _ in range(world.options.pieces_in_pool):
         itempool.append(world.create_item("Star Rod Piece"))
     #Handle vitality computation from options
     vitality_count = world.options.max_vitality - world.options.starting_vitality

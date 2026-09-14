@@ -46,29 +46,31 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
     #Connect all level regions to their parent world region via connections named like "Vegetable Valley 1 Door". These connections have no requirements
     for world_name in WORLD_NAMES_INDEXED:
         w = world.get_region(world_name)
-        w_names_to_regions = {rn:world.get_region(rn) for rn in region_names if rn.startswith(world_name + ' ')} #space to get all levels and not the world itself
-        for rn in w_names_to_regions.keys():
-            #region (region object), entrance name (string), rule definition with state
-            #remember that a lambda is just a nameless function; any callable function could fill the arg also (but an argument of a "state" object is expected, ofc)
-            ##w1.connect(w1_names_to_regions[rn], rn + " Door", lambda state: state.has(rn + " Level Key", world.player)) 
-            w.connect(w_names_to_regions[rn], rn + " Door")
+        for rn in region_names:
+            if rn.startswith(world_name + ' '):
+                r = world.get_region(rn)
+                w.connect(r, rn + " Door") 
 
     #Connect all world regions to each other in sequence with Star Rod Pieces as the requirement
     #Do the Star Rod calculation from options
     if world.options.req_pieces_prc == 0:
         req_pieces = world.options.req_pieces_num
     else:
-        req_pieces = int(world.options.req_pieces_prc/100 * world.options.num_pieces)
-    if req_pieces > world.options.num_pieces:
+        req_pieces = int(world.options.req_pieces_prc/100 * world.options.pieces_in_pool)
+    if req_pieces > world.options.pieces_in_pool:
         raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
     if req_pieces < 7:
         raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
     #Calculate the required pieces for each boss
     req_pieces_per_boss = int(req_pieces/7)
+
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
         w_current = world.get_region(world_name)
         w_next = world.get_region(WORLD_NAMES_INDEXED[i+1])
-        w_current.connect(w_next,world_name + ' Next Door', lambda state: state.has("Star Rod Piece", world.player, req_pieces_per_boss*(i+1)))
-
+        req_pieces = req_pieces_per_boss*(i+1)
+        ##PYTHON PITFALL: if a lambda references iteration variable i, it will "look up" the value of i when called, which is the END VALUE of the loop (ie, 6)
+        ##SOLUTION: use the extra "rp" variable in the lambda with the "req pieces" value defined in the loop. Notice how the "rp" var turns color in VS code
+        ##This applies to ALL rule functions
+        w_current.connect(w_next,world_name + ' Next Door', lambda state, rp=req_pieces: state.has("Star Rod Piece", world.player, rp))
 
   

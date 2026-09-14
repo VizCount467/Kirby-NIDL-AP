@@ -32,22 +32,7 @@ ABILITY_AVAILABILITY_TABLE = {
     'Throw' : 4
 }
 
-#Some helper functions for abilities. Needed since you can have an ability unlocked, but not be able to reach a world where you can access it
-#Relies on Star Rod requirements for World being fixed -- do note
-def can_use_ability(state, world, ability):
-    return state.has(ability, world.player) and state.has('Star Rod Piece', world.player, ABILITY_AVAILABILITY_TABLE[ability])
 
-def can_use_any_ability(state,world,ability_list):
-    return any([can_use_ability(state,world,ability) for ability in ability_list])
-
-def can_pound_stake(state,world):
-    return can_use_any_ability(state,world,('Stone','Hammer'))
-
-def can_light_fuse(state,world):
-    return can_use_any_ability(state,world,('Fire','Burning','Laser'))
-
-def can_destroy_metal_side(state,world):
-    return can_use_any_ability(state, world, ('Burning','Wheel','Hammer'))
 
 # In order for AP to generate an item layout that is actually possible for the player to complete,
 # we need to define rules for our Entrances and Locations.
@@ -67,6 +52,26 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     #evaluating conditions involving player options OUTSIDE the rule)
     # Using lambdas with boolean logic combos of state.has and state.has_all is standard
     #you can also AND rules together via add_rule(location,rule) once one rule is set, but this is actually slower and not recommended
+
+    #Some helper functions for abilities. Needed since you can have an ability unlocked, but not be able to reach a world where you can access it
+    #req_pieces is a local variable to set "set all location rules" function. Hoping this is fine efficiency-wise
+    def can_use_ability(state, world, ability):
+        if ABILITY_AVAILABILITY_TABLE[ability] == 1:
+                return state.has(ability, world.player) #W1 abilities are always available if unlocked
+        else:
+                return state.has(ability, world.player) and state.has('Star Rod Piece', world.player, (ABILITY_AVAILABILITY_TABLE[ability]-1)*req_pieces_per_boss)
+
+    def can_use_any_ability(state,world,ability_list):
+        return any([can_use_ability(state,world,ability) for ability in ability_list])
+
+    def can_pound_stake(state,world):
+        return can_use_any_ability(state,world,('Stone','Hammer'))
+
+    def can_light_fuse(state,world):
+        return can_use_any_ability(state,world,('Fire','Burning','Laser'))
+
+    def can_destroy_metal_side(state,world):
+        return can_use_any_ability(state, world, ('Burning','Wheel','Hammer'))
     
     #Now, since the entrance rules handle all Star Rod Pieces, all we need to set is the logic for ability use
     #And also the boss checks, since those take place in world X, but require X Star Rod pieces
@@ -75,8 +80,8 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     if world.options.req_pieces_prc == 0:
         req_pieces = world.options.req_pieces_num
     else:
-        req_pieces = int(world.options.req_pieces_prc/100 * world.options.num_pieces)
-    if req_pieces > world.options.num_pieces:
+        req_pieces = int(world.options.req_pieces_prc/100 * world.options.pieces_in_pool)
+    if req_pieces > world.options.pieces_in_pool:
         raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
     if req_pieces < 7:
         raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
@@ -85,8 +90,9 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
         for loc_name in LOCATION_TABLE_READABLE.keys():
             if 'Boss' in loc_name and world_name in loc_name:
+                req_pieces = req_pieces_per_boss*(i+1)
                 set_rule(world.get_location(loc_name),
-                        lambda state: state.has("Star Rod Piece", world.player, req_pieces_per_boss*(i+1))
+                        lambda state, rp=req_pieces: state.has("Star Rod Piece", world.player, rp) #see regions.py for explanation of the "rp" variable
                         )
                 break
     #For all other location rules, there are no real patterns. So, everything will just be manual, I guess
@@ -94,8 +100,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     set_rule(world.get_location("Ice Cream Island 3 - Tomato (UFO Room)"),
              lambda state: can_use_any_ability(state, world, (
                  'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer'
-             ))
-             )
+             )))
     
     if world.options.advanced_logic:
         set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),

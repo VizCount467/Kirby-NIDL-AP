@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from Options import Choice, Range, Toggle, OptionSet, PerGameCommonOptions
+from Options import Choice, Range, Toggle, DefaultOnToggle,  OptionSet, PerGameCommonOptions
 
 ##Not to be implemented until much later, if ever, because it would hugely complicate ability access logic
 # class LockLevelDoors(Toggle):
@@ -31,11 +31,11 @@ class AdvancedLogic(Toggle):
     """Incorporates various difficult, obscure, or unintuitive tricks into item placement logic. Check game page for more info"""
     display_name = 'Advanced Logic'
 
-class LockBonusDoors(Toggle):
+class LockBonusDoors(DefaultOnToggle): #instead of setting the default of the Toggle option to "true", you must use this alt object to set a toggle option as true by default (ugh)
     """Locks all doors to minigames, arenas, museums and warp star stations in the overworld until a Key Item is collected. Adds bonus door keys to the item pool"""
     display_name = "Lock Bonus Doors"
 
-class LockCopyAbilities(Toggle):
+class LockCopyAbilities(DefaultOnToggle):
     """Prevents Kirby from using copy abilities until unlocked. Adds copy ability unlocks to the item pool"""
     display_name = "Lock Copy Abilities"
 
@@ -60,7 +60,7 @@ class MaxVitality(Range):
 
 @dataclass
 class KirbyNIDLOptions(PerGameCommonOptions):
-    num_pieces: NumberStarRod
+    pieces_in_pool: NumberStarRod
     req_pieces_num: ReqNumStarRod
     req_pieces_prc: ReqPrcStarRod
     advanced_logic: AdvancedLogic

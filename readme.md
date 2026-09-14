@@ -66,5 +66,5 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 8/28/26: Fix client sync counter bug. Update guide in apworld docs. Other misc bug-squashing.
 - 9/3/26: Overhaul Ability locking system to go in-game, fixing issues concerning copy abilities and the mix roulette. Fixed door lock edge case
 - 9/4/26: Add functional options to client and world
-
+- 9/13/26: Add Tests. Fix logic bug with Star Rod progression
 

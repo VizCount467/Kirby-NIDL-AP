@@ -84,6 +84,7 @@ KIRBY_X_ADR = 0x23CC
 KIRBY_Y_ADR = 0x2388
 MOUTH_ADR = 0x217B
 BOSS_HP_ADR = 0x3A08
+LEVELS_CLEARED_ADR = 0x2384
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
 ITEM_AWARD_ADR = 0x78A8
@@ -129,6 +130,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_arena_check = False
         self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.switches_pressed = False
+        self.level_clear_flag_set = False
         self.req_pieces = None
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
@@ -183,8 +185,8 @@ class KirbyNIDLClient(BizHawkClient):
                 if ctx.slot_date.get('req_pieces_prc') == 0:
                     req_pieces = ctx.slot_date.get('req_pieces_num')
                 else:
-                    req_pieces = int(ctx.slot_date.get('req_pieces_prc')/100 * ctx.slot_date.get('num_pieces'))
-                if req_pieces > ctx.slot_date.get('num_pieces'):
+                    req_pieces = int(ctx.slot_date.get('req_pieces_prc')/100 * ctx.slot_date.get('pieces_in_pool'))
+                if req_pieces > ctx.slot_date.get('pieces_in_pool'):
                     raise Exception('Error in Received Star Rod Piece Options: number of required pieces greater than amount in pool')
                 if req_pieces < 7:
                     raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
@@ -199,6 +201,7 @@ class KirbyNIDLClient(BizHawkClient):
                 return
             
             # During the Level Intro Cutscene or any normal level, force all level clear flags to 02 to open the entire OW
+            # And also the levels cleared variable to 06 (all) to make door sprites show up
             # Also set the big switch exists array to all 0 so that all big switches appear
             # Also set Kirby's max vitality here too
             # This strategy is a problem if savestates are used, but that's whatever for now
@@ -214,10 +217,13 @@ class KirbyNIDLClient(BizHawkClient):
                                     (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
                                     ]
                 self.switches_pressed = True
+                #Set "level clear count"
+                clear_flag_writes.append((LEVELS_CLEARED_ADR,[0x06],'IWRAM'))
                 #logger.debug(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
+
                 #Set Kirby's Health Bar
                 if not self.kirby_max_hp:
                     extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
@@ -230,6 +236,7 @@ class KirbyNIDLClient(BizHawkClient):
                      ]
                 )
                 self.initial_flags_written = True
+                self.level_clear_flag_set = True
 
             #If NOT in a level, set the "switches pressed" state to True
             if not screen_mod == 0x8 and self.switches_pressed == False:
@@ -252,6 +259,13 @@ class KirbyNIDLClient(BizHawkClient):
                     ]
                 )
                 self.switches_pressed = False
+
+            #If on the world intro cutscene, set the level count address back to 6 (it resets on beating a boss)
+            if screen_mod == 0x7 and not self.level_clear_flag_set:
+                logger.info('Setting level clear counter to 06')
+                await bizhawk.write(ctx.bizhawk_ctx,[(LEVELS_CLEARED_ADR,[0x06],'IWRAM')])
+                self.level_clear_flag_set = True
+
 
             
             #while in a level or the OW, check to see if there are items to award
@@ -468,6 +482,8 @@ class KirbyNIDLClient(BizHawkClient):
                 self.prev_boss_hp = 100
             if not screen_mod == 0x5: #Always unlock doors when not in the overworld
                 self.door_locked = False
+            if not screen_mod == 0x7: #make sure this resets for every level intro cutscene
+                self.level_clear_flag_set = False
 
                 
             #In-Level Checks
