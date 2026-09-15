@@ -126,8 +126,8 @@ LOCATION_TABLE_READABLE = {
     "Grape Garden 4 - 1up (Wheel Race)" : 441,
 
     "Grape Garden 5 - Level Clear" : 450,
-    "Grape Garden 5 - Candy (first Room)" : 451,
-    "Grape Garden 5 - Tomato (Sqishy Room)" : 452,
+    "Grape Garden 5 - Candy (First Room)" : 451,
+    "Grape Garden 5 - Tomato (Bomb Pillar)" : 452,
     "Grape Garden 5 - Pep Drink (Hidden Room)" : 453,
     "Grape Garden 5 - 1up (Hidden Room Underside)" : 457,
     "Grape Garden 5 - 1up (Burning Room Bottom)" : 454,
@@ -147,7 +147,7 @@ LOCATION_TABLE_READABLE = {
     "Yogurt Yard 1 - Level Clear" : 510,
     "Yogurt Yard 1 - 1up (Rocky Room)" : 512,
     "Yogurt Yard 1 - Pep Drink (Skydive Room)" : 511,
-    "Yogurt Yard 1 - Pep Drink (Big Switch Room)" : 514,
+    "Yogurt Yard 1 - Pep Drink (Big Switch Room)" : 513,
     "Yogurt Yard 1 - Big Switch" : 519,
 
     "Yogurt Yard 2 - Level Clear" : 520,

@@ -66,7 +66,7 @@ ITEM_NAME_TO_ID = {
 
 #Here to make a weighted choice from among the filler items
 Filler_Items = ['Pep Drink','Maxim Tomato','1up','Invincibility Candy']
-Filler_Weights = [8,3,2,2] #These are not the in-game ratios, I just made them up. In the future, this will _maybe_ be an option
+Filler_Weights = [8,3,1,3] #These are not the in-game ratios, I just made them up. In the future, this will _maybe_ be an option
 
 # Each Item instance must correctly report the "game" it belongs to.
 # To make this simple, it is common practice to subclass the basic Item class and override the "game" field.

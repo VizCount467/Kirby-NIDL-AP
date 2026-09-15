@@ -41,6 +41,9 @@
 .definelabel DoorID, 0x02000030
 
 .definelabel WorldLevel_Modifier, 0x030023EC
+.definelabel Room_Modifer, 0x03002468
+.definelabel World_Modifier, 0x0300238C
+.definelabel Music_Track, 0x03000490
 
 .definelabel Mouth_Get_Hook, 0x0806BE0A
 .definelabel Mouth_Get_End, 0x0806BE46
@@ -49,6 +52,8 @@
 
 .definelabel Mix_Change_Hook, 0x080481A2
 .definelabel Mix_Change_Continue, 0x080481B2
+
+.definelabel Big_Switch_Exists_Check, 0x080B5242
 
 
 ;All functions below end with bx rN, so set lr before calling them
@@ -67,7 +72,7 @@
 
 
 ; ============================
-;HOOKS
+;HOOKS & OVERRIDES
 ; ============================
 
 ;Hook to all code that needs to run "every frame"
@@ -102,6 +107,11 @@
     bx r1
     .pool
 
+;Override the "check if Big Switch should be loaded" variable load with a straight write of #0x0 (No switches are ever pressed always)
+.org Big_Switch_Exists_Check
+    mov r0, #0x0
+    nop
+    .pool
 
 ; ============================
 ; CUSTOM CODE
@@ -121,13 +131,29 @@ FreeROM_ClientCheck:
 
 @@Continue_Client_Check_1:
     ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
+    ;Note that "on a warp star" is screen mod 11, so no issues with trying to heal there
     ldr r2, =ScreenModifier
     ldrb r0,[r2]
     cmp r0, #0x8 ;Normal level or Boss
-    beq @@Continue_Client_Check_2
+    beq @@Filter_Nightmare
     cmp r0, #0x13 ;Arena
     beq @@Continue_Client_Check_2
     b @@MakeUp_and_Resume_OGFunction ;Kirby is not in a level or arena, nothing happens
+
+@@Filter_Nightmare: ;Nightmare fight is 08 (normal level), but it is impossible to heal during some parts. so, don't
+    ldr r2, =World_Modifier
+    ldrb r0, [r2]
+    cmp r0, #0x7
+    blt @@Continue_Client_Check_2 ;If world is not 7, we're not in the Nightmare fight. Continue procedure
+    ldr r2, =Room_Modifier
+    ldrb r0, [r2]
+    cmp r0, #0x0
+    beq @@MakeUp_and_Resume_OGFunction ;;If room is 0 (orb phase), do nothing. return.
+    ldr r2, =Music_Track
+    ldrb r0, [r2]
+    cmp r0, #0x22
+    beq @@Continue_Client_Check_2 ;;If music track is 22 (wizard fight start), continue procedure. Else do nothing
+    b @@MakeUp_and_Resume_OGFunction
 
 @@Continue_Client_Check_2:
     ldr r2, =ItemAwardControlByte
@@ -364,6 +390,12 @@ FreeROM_DoorLock:
     ldr r1, =DoorID
     mov r0, #0xFF
     strb r0,[r1]
+
+    ;Check if kirby is in the OW. If not, do nothing and return (only OW doors are ever locked!)
+    ldr r1, =ScreenModifier
+    ldrb r0, [r1]
+    cmp r0, #0x5
+    bne @@GoToDoorHandlerStart
 
     ;Read Kirby's coordinates, floor round to nearest block, and combine in a single halfword
     ldr r1, =Kirby_Xpos_IW

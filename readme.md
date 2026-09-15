@@ -42,17 +42,15 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin) (also complicates ability logic)
 - Enemy Ability Shuffle (immensely complicates ability logic)
+- Option to use open Warp Star stations to skip bosses (slightly complicates logic, requires asm tinkering)
 - Option to play as Meta Knight (Kirby steps in at final boss? Stop at Dedede?)
 - Energy Link Support
 - On-Screen AP Text (via either the nightmare defeated story narration or the label that appears at the top of the screen in each overworld lobby) (maybe the credits too??)
 
 ## Known Bugs and Issues
 
-- As a side effect of unlocking all levels, overworld door sprites are not loaded until the boss is defeated and the game is reloaded
-- The Healing / HP Bank system may not work in the final battle
 - Generation may be unoptimized. Gen with this in big games at your own risk!
 - The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
-- Sometimes, the state of the overworld may have none of the big switches pressed. Try entering/exiting a level or other overworld lobbies, and this should fix itself (?)
 
 ## Latest Updates
 
@@ -67,4 +65,10 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 9/3/26: Overhaul Ability locking system to go in-game, fixing issues concerning copy abilities and the mix roulette. Fixed door lock edge case
 - 9/4/26: Add functional options to client and world
 - 9/13/26: Add Tests. Fix logic bug with Star Rod progression
+- 9/15/26: Polishing and bug squashing. Fixes attempted for following bugs:
+    - Overworld door locking does not lock doors in levels (re: 4-6 stake room, 6-2 rocky room)
+    - Item awarding no longer attempted in Nightmare Orb phase (healing is impossible)
+    - Big Switch state partly moved game side to ensure Overworld is always open. Client sets "all switches pressed" while game always reads "no switches pressed" in Big Switch rooms. 
+    - Fixed 5-1 location ID's
+    - Expanded 5-5 Big Switch Logic. 
 

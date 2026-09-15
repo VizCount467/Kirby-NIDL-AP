@@ -17,7 +17,7 @@ import copy, logging, time
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-###DATA - Abstract to other files LATER
+###DATA
 ##APWORLD STUFF
 KNIDL_BASE_ID = 2742740
 KIRBY_BASE_HP = 3
@@ -166,6 +166,10 @@ class KirbyNIDLClient(BizHawkClient):
     
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         try:
+            #Early short circuit for when slot data hasn't loaded yet?
+            if not ctx.slot_data:
+                return
+            
             #Check Game State
             #NOTE the bizhawk.read command returns a list of bytes (size 1) or bytearrays (size 1+)
             screen_modb, = await bizhawk.read(ctx.bizhawk_ctx, [
@@ -182,11 +186,11 @@ class KirbyNIDLClient(BizHawkClient):
             #Also before anything, set the required star rod pieces now that we have options access
             #Do the Star Rod calculation from options
             if not self.req_pieces:
-                if ctx.slot_date.get('req_pieces_prc') == 0:
-                    req_pieces = ctx.slot_date.get('req_pieces_num')
+                if ctx.slot_data.get('req_pieces_prc') == 0:
+                    req_pieces = ctx.slot_data.get('req_pieces_num')
                 else:
-                    req_pieces = int(ctx.slot_date.get('req_pieces_prc')/100 * ctx.slot_date.get('pieces_in_pool'))
-                if req_pieces > ctx.slot_date.get('pieces_in_pool'):
+                    req_pieces = int(ctx.slot_data.get('req_pieces_prc')/100 * ctx.slot_data.get('pieces_in_pool'))
+                if req_pieces > ctx.slot_data.get('pieces_in_pool'):
                     raise Exception('Error in Received Star Rod Piece Options: number of required pieces greater than amount in pool')
                 if req_pieces < 7:
                     raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
@@ -238,27 +242,29 @@ class KirbyNIDLClient(BizHawkClient):
                 self.initial_flags_written = True
                 self.level_clear_flag_set = True
 
-            #If NOT in a level, set the "switches pressed" state to True
-            if not screen_mod == 0x8 and self.switches_pressed == False:
-                logger.info('Setting big switches to "pressed" state')
-                await bizhawk.write(ctx.bizhawk_ctx, 
-                    [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
-                    ]
-                )
-                self.switches_pressed = True
+            ##Swapping switch state should not be necessary after the initial flag setting, since game is modified to always load switch
+            ##regardless of flag array state
+            # #If NOT in a level, set the "switches pressed" state to True
+            # if not screen_mod == 0x8 and self.switches_pressed == False:
+            #     logger.info('Setting big switches to "pressed" state')
+            #     await bizhawk.write(ctx.bizhawk_ctx, 
+            #         [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
+            #         (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
+            #         (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
+            #         ]
+            #     )
+            #     self.switches_pressed = True
 
-            #If IN a level, set the "switches pressed" state to False
-            elif screen_mod == 0x8 and self.switches_pressed == True:
-                logger.info('Setting big switches to "unpressed" state')
-                await bizhawk.write(ctx.bizhawk_ctx, 
-                    [(IW_SWITCHEXISTS_BITARR,[0],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM'),
-                    (IW_SWITCHEXISTS_BITARR+2,[0],'IWRAM')
-                    ]
-                )
-                self.switches_pressed = False
+            # #If IN a level, set the "switches pressed" state to False
+            # elif screen_mod == 0x8 and self.switches_pressed == True:
+            #     logger.info('Setting big switches to "unpressed" state')
+            #     await bizhawk.write(ctx.bizhawk_ctx, 
+            #         [(IW_SWITCHEXISTS_BITARR,[0],'IWRAM'),
+            #         (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM'),
+            #         (IW_SWITCHEXISTS_BITARR+2,[0],'IWRAM')
+            #         ]
+            #     )
+            #     self.switches_pressed = False
 
             #If on the world intro cutscene, set the level count address back to 6 (it resets on beating a boss)
             if screen_mod == 0x7 and not self.level_clear_flag_set:

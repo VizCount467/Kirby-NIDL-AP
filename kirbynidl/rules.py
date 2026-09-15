@@ -250,9 +250,30 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     set_rule(world.get_location("Grape Garden 6 - Big Switch"),
         lambda state: state.has("Light", world.player)
         )
-    set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
-        lambda state: can_light_fuse(state,world)
-        and can_use_ability(state, world,'Hi-Jump')
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
+                lambda state: 
+                #Condition 1: any fuse lighter and Hi-Jump
+                (can_light_fuse(state,world) and can_use_ability(state, world,'Hi-Jump')
+                ) or
+                #Condition 2: Burning
+                (can_use_ability(state, world,'Burning')
+                ) or
+                #Condition 3: Any of a set of abilities that can break the blocks and Fire. Advanced allows parasol, which is fairly tricky
+                (can_use_ability(state,world,'Fire') and can_use_any_ability(
+                        'Spark','Sword','Freeze','Needle','Hammer','Throw','Parasol'
+                ))
+        )
+    else:
+        set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
+                lambda state: 
+                (can_light_fuse(state,world) and can_use_ability(state, world,'Hi-Jump')
+                ) or
+                (can_use_ability(state, world,'Burning')
+                ) or
+                (can_use_ability(state,world,'Fire') and can_use_any_ability(
+                        'Spark','Sword','Freeze','Needle','Hammer','Throw'
+                ))
         )
     set_rule(world.get_location("Yogurt Yard 6 - Big Switch"),
             lambda state: can_use_ability(state, world, 'Hammer'))
@@ -305,7 +326,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     
     #Also set the rule for the victory event
     set_rule(world.get_location("The Fountain of Dreams - Nightmare"),
-              lambda state: state.has("Star Rod Piece", world.player,req_pieces)
+              lambda state: state.has("Star Rod Piece", world.player, req_pieces)
               )
 
 # Finally, we need to set a completion condition for our world, defining what the player needs to win the game.
