@@ -118,8 +118,9 @@ LOCATION_TABLE_READABLE = {
     "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 421,
 
     "Grape Garden 3 - Level Clear" : 430,
+    "Grape Garden 3 - Pep Drink (Blimp Interior)": 431,
     "Grape Garden 3 - 1up (Cannon)" : 432,
-    "Grape Garden 3 - Tomato (Blimp Interior)" : 431,
+    "Grape Garden 3 - Tomato (Kabu Room)" : 433,
     "Grape Garden 3 - Big Switch" : 439,
 
     "Grape Garden 4 - Level Clear" : 440,
@@ -188,7 +189,7 @@ LOCATION_TABLE_READABLE = {
 
     "Orange Ocean 2 - Level Clear" : 620,
     "Orange Ocean 2 - Pep Drink (Bomb Block)" : 621,
-    "Orange Ocean 2 - 1up (Rocky Room)" : 624,
+    "Orange Ocean 2 - 1up (Secret Rocky Room)" : 624,
     "Orange Ocean 2 - Tomato (Poppy Bros. Jr.)" : 622,
     "Orange Ocean 2 - Big Switch" : 629,
 
@@ -304,7 +305,7 @@ def create_all_locations(world: KirbyNIDLWorld) -> None:
     #Here, we create a "Victory" event to make declaring World completion easier
     #Note, this "Nightmare" event is created in this statement, and can be accessed like a location
     #the "Victory" is also created in this statement, and is accessed like an item in logical requirements
-    #The client doesn't use this event to send the Game Clear status, but this is still the best way to handle the logical requirements??
+    #The client doesn't use this event to send the Game Clear status, but this is still the best way to handle the logical requirements
     r = world.get_region('Rainbow Resort')
     r.add_event(
             "The Fountain of Dreams - Nightmare", "Victory", location_type=KirbyNIDLLocation, item_type=items.KirbyNIDLItem

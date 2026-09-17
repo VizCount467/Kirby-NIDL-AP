@@ -67,8 +67,11 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 9/13/26: Add Tests. Fix logic bug with Star Rod progression
 - 9/15/26: Polishing and bug squashing. Fixes attempted for following bugs:
     - Overworld door locking does not lock doors in levels (re: 4-6 stake room, 6-2 rocky room)
-    - Item awarding no longer attempted in Nightmare Orb phase (healing is impossible)
+    - Item awarding no longer attempted in Nightmare Orb phase (healing is impossible) (NOT SOLVED as of 9/17)
     - Big Switch state partly moved game side to ensure Overworld is always open. Client sets "all switches pressed" while game always reads "no switches pressed" in Big Switch rooms. 
     - Fixed 5-1 location ID's
     - Expanded 5-5 Big Switch Logic. 
+- 9/17/26: Further Polishing. Update Docs with implementation details. Added All essential Tests and tightened Rules.py logic. Fixes Attempted for following bugs
+    - Add missing Pep Drink in 4-3 to locations
+    - Client "sync counter" goes to length of items received if internal counter somehow greater than network instead of resetting
 

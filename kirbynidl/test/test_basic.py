@@ -6,7 +6,8 @@ class TestBasic(KNIDLTestBase):
     options = {
         'pieces_in_pool': 7,
         'req_pieces_num' : 7,
-        'req_pieces_prc' : 0
+        'req_pieces_prc' : 0,
+        'advanced_logic' : False
     }
 
     #Default test will also be run for every test file. According to APQuest, these are:
@@ -36,7 +37,7 @@ class TestBasic(KNIDLTestBase):
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
             loc = self.world.get_location('Butter Building 1 - Level Clear')
-            self.assertFalse(loc.can_reach(self.multiworld.state)) #Apparently, we CAN reach 3-1 with only 1 star piece??
+            self.assertFalse(loc.can_reach(self.multiworld.state)) 
             self.collect(self.get_item_by_name('Star Rod Piece'))
             self.assertTrue(loc.can_reach(self.multiworld.state)) 
 
@@ -59,3 +60,47 @@ class TestBasic(KNIDLTestBase):
             self.assertFalse(loc.can_reach(self.multiworld.state))
             self.collect(self.get_item_by_name('Star Rod Piece'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
+
+            loc = self.world.get_location('The Fountain of Dreams - Nightmare')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Star Rod Piece'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+        with self.subTest('Test Some Ability Logic'):
+            ##NOTE collected items DO NOT reset between subtests. So, all worlds are already unlocked
+            # for _ in range(7):
+            #     self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock all levels
+            loc = self.world.get_location('Grape Garden 4 - 1up (Wheel Race)')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Wheel'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+            loc = self.world.get_location('Grape Garden 3 - 1up (Cannon)')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Fire'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+            loc = self.world.get_location('Orange Ocean 3 - Big Switch')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Laser'))
+            self.collect(self.get_item_by_name('Throw'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+    def test_ability_availibility(self) -> None:
+        with self.subTest('Test Ability Availibility'):
+            loc = self.world.get_location('Ice Cream Island 5 - 1up (Metal Blocks 1)')
+            for _ in range(1):
+                self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock W2
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Hammer'))
+            self.assertFalse(loc.can_reach(self.multiworld.state)) #Hammer not yet available until W3
+            self.collect(self.get_item_by_name('Star Rod Piece')) #unlock W3 w/Bonkers
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+
+            
+        
+
+
+
+

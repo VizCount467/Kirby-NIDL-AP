@@ -242,30 +242,6 @@ class KirbyNIDLClient(BizHawkClient):
                 self.initial_flags_written = True
                 self.level_clear_flag_set = True
 
-            ##Swapping switch state should not be necessary after the initial flag setting, since game is modified to always load switch
-            ##regardless of flag array state
-            # #If NOT in a level, set the "switches pressed" state to True
-            # if not screen_mod == 0x8 and self.switches_pressed == False:
-            #     logger.info('Setting big switches to "pressed" state')
-            #     await bizhawk.write(ctx.bizhawk_ctx, 
-            #         [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
-            #         (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
-            #         (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
-            #         ]
-            #     )
-            #     self.switches_pressed = True
-
-            # #If IN a level, set the "switches pressed" state to False
-            # elif screen_mod == 0x8 and self.switches_pressed == True:
-            #     logger.info('Setting big switches to "unpressed" state')
-            #     await bizhawk.write(ctx.bizhawk_ctx, 
-            #         [(IW_SWITCHEXISTS_BITARR,[0],'IWRAM'),
-            #         (IW_SWITCHEXISTS_BITARR+1,[0],'IWRAM'),
-            #         (IW_SWITCHEXISTS_BITARR+2,[0],'IWRAM')
-            #         ]
-            #     )
-            #     self.switches_pressed = False
-
             #If on the world intro cutscene, set the level count address back to 6 (it resets on beating a boss)
             if screen_mod == 0x7 and not self.level_clear_flag_set:
                 logger.info('Setting level clear counter to 06')
@@ -293,9 +269,8 @@ class KirbyNIDLClient(BizHawkClient):
                     self.sync_counter = sync_counter_ingame
                 #sync counter doesn't match, award items
                 if self.sync_counter != len(ctx.items_received):
-                    if self.sync_counter > len(ctx.items_received): 
-                        logger.warning('sync counter is somehow greater than number of items received!')
-                        self.sync_counter = 0
+                    if self.sync_counter > len(ctx.items_received): #This can happen; don't worry about it too much. Progress will be unlocked regardless
+                        self.sync_counter = len(ctx.items_received)
                     #Loop from latest sync counter to get new items
                     for i in range(self.sync_counter, len(ctx.items_received)):
                         received_item = ctx.items_received[i]
@@ -314,7 +289,7 @@ class KirbyNIDLClient(BizHawkClient):
 
                     if received_item_name.endswith(' Key'):
                         #Remove the corresponding entry of the Key item from the list of locked doors
-                        logger.info(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
+                        logger.debug(f'removing lock for Key item {ITEM_ID_TO_NAME[received_item.item]}')
                         dn = received_item_name[:-4] #minus Key, ie 'Vegetable Valley Bomb Rally'
                         if dn in self.locked_door_names:
                             self.locked_door_names.remove(dn)
@@ -322,7 +297,7 @@ class KirbyNIDLClient(BizHawkClient):
                     if received_item_id_readable > 50 and received_item_id_readable < 75:
                         ability_id = received_item_id_readable - 50
                         ability_name = ABILITY_LIST_INDEXED[ability_id]
-                        logger.info(f'removing lock for Copy Ability {ability_name}, ability id {ability_id}')
+                        logger.debug(f'removing lock for Copy Ability {ability_name}, ability id {ability_id}')
                         if ability_name in self.locked_abilities:
                             self.locked_abilities.remove(ability_name)
 

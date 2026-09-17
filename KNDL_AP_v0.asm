@@ -41,7 +41,7 @@
 .definelabel DoorID, 0x02000030
 
 .definelabel WorldLevel_Modifier, 0x030023EC
-.definelabel Room_Modifer, 0x03002468
+.definelabel Room_Modifier, 0x03002468
 .definelabel World_Modifier, 0x0300238C
 .definelabel Music_Track, 0x03000490
 
@@ -144,11 +144,7 @@ FreeROM_ClientCheck:
     ldr r2, =World_Modifier
     ldrb r0, [r2]
     cmp r0, #0x7
-    blt @@Continue_Client_Check_2 ;If world is not 7, we're not in the Nightmare fight. Continue procedure
-    ldr r2, =Room_Modifier
-    ldrb r0, [r2]
-    cmp r0, #0x0
-    beq @@MakeUp_and_Resume_OGFunction ;;If room is 0 (orb phase), do nothing. return.
+    bne @@Continue_Client_Check_2 ;If world is not 7, we're not in the Nightmare fight. Continue procedure
     ldr r2, =Music_Track
     ldrb r0, [r2]
     cmp r0, #0x22
@@ -391,6 +387,8 @@ FreeROM_DoorLock:
     mov r0, #0xFF
     strb r0,[r1]
 
+    push {r4} ;Will need one more free register here for the door logic calculation
+
     ;Check if kirby is in the OW. If not, do nothing and return (only OW doors are ever locked!)
     ldr r1, =ScreenModifier
     ldrb r0, [r1]
@@ -417,7 +415,6 @@ FreeROM_DoorLock:
 
     ;Iterate counter r1 through the entire world's door coords, stopping when we get a match
     mov r1, #0x0
-    push {r4} ;Need one more free register here
 @@Door_Coord_Loop:
     ;The value in the table is the LEFT block of the door. We must check it and 7 other surrounding blocks to handle all edge cases
     ldrh r0, [r2, r1]
