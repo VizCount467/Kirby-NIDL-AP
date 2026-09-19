@@ -91,7 +91,7 @@ LOCATION_TABLE_READABLE = {
 
     "Butter Building 5 - Level Clear" : 350,
     "Butter Building 5 - Candy (First Room)" : 351,
-    "Butter Building 5 - Pep Drink (Fire Escape)" : 352,
+    "Butter Building 5 - Pep Drink (Exterior Wall)" : 352,
     "Butter Building 5 - Tomato (After Bonkers 1)" : 353,
     "Butter Building 5 - 1up (After Bonkers 2)" : 354,
 
@@ -198,7 +198,7 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 3 - Pep Drink (Bonkers Room)" : 632,
     "Orange Ocean 3 - 1up (Man Overboard!)" : 636,
     "Orange Ocean 3 - Tomato (Laser Ball Room)" : 637,
-    "Orange Ocean 3 - Pep Drink (After Bonkers)" : 633,
+    "Orange Ocean 3 - Pep Drink (High Up After Bonkers)" : 633,
     "Orange Ocean 3 - 1up (Right Window Secret)" : 635,
     "Orange Ocean 3 - 1up (Left Window Secret)" : 634,
     "Orange Ocean 3 - Big Switch" : 639,
@@ -208,7 +208,7 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 4 - 1up (Beam Bomb Block 1)" : 642,
     "Orange Ocean 4 - 1up (Beam Bomb Block 2)" : 643,
     "Orange Ocean 4 - 1up (Beam Bomb Block 3)" : 644,
-    "Orange Ocean 4 - 1up (Cave Detour)" : 641,
+    "Orange Ocean 4 - 1up (Cave Roundabout)" : 641,
     "Orange Ocean 4 - Pep Drink (Below Bomber)" : 645,
     "Orange Ocean 4 - Big Switch" : 649,
 

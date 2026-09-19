@@ -82,9 +82,9 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     else:
         req_pieces = int(world.options.req_pieces_prc/100 * world.options.pieces_in_pool)
     if req_pieces > world.options.pieces_in_pool:
-        raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
+        raise Exception('Error in Star Rod Piece Options: number of required pieces cannot be greater than amount in pool')
     if req_pieces < 7:
-        raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+        raise Exception('Error in Received Star Rod Piece Options: number of required pieces is less than 7 (percent set too low)')
     #Calculate the required pieces for each boss
     req_pieces_per_boss = int(req_pieces/7)
     for i, world_name in enumerate(WORLD_NAMES_INDEXED[:-1]):
@@ -190,8 +190,12 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
             lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
     set_rule(world.get_location("Yogurt Yard 3 - 1up (Stake Room Right)"),
             lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
-    set_rule(world.get_location("Yogurt Yard 4 - 1up (Spike Tunnel)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Burning'))
+    if world.options.advanced_logic:
+        set_rule(world.get_location("Yogurt Yard 4 - 1up (Spike Tunnel)"),
+                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, ('Burning','Tornado')))
+    else:
+        set_rule(world.get_location("Yogurt Yard 4 - 1up (Spike Tunnel)"),
+                lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Burning'))
     set_rule(world.get_location("Yogurt Yard 6 - 1up (Big Switch Room Left)"),
             lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Hammer'))
 

@@ -76,6 +76,7 @@ PICKUP_FLAG_ADR = 0x7BF0
 BGM_ID_ADR = 0x0490
 SCREEN_MOD_ADR = 0x23D8 
 OW_MOD_ADR = 0x23B8
+WORLD_MOD_ADR = 0x238C
 LEVEL_MOD_ADR = 0x1F20
 ROOM_MOD_ADR = 0x2468
 IW_CLEAR_FLAGS_START = 0x2400 
@@ -191,9 +192,9 @@ class KirbyNIDLClient(BizHawkClient):
                 else:
                     req_pieces = int(ctx.slot_data.get('req_pieces_prc')/100 * ctx.slot_data.get('pieces_in_pool'))
                 if req_pieces > ctx.slot_data.get('pieces_in_pool'):
-                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces greater than amount in pool')
+                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces cannot be greater than amount in pool')
                 if req_pieces < 7:
-                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+                    raise Exception('Error in Received Star Rod Piece Options: number of required pieces is less than 7 (percent set too low)')
                 #Calculate the required pieces for each boss
                 self.req_pieces_per_boss = int(req_pieces/7)
                 self.req_pieces = req_pieces
@@ -370,13 +371,19 @@ class KirbyNIDLClient(BizHawkClient):
             #May need to put a delay timer on this
             if len(self.item_queue) != 0:
                 #check if we're free to award the item
-                item_award_panelb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (ITEM_AWARD_ADR, 1, "IWRAM")       
+                (item_award_panelb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (ITEM_AWARD_ADR, 1, "IWRAM"),
+                    (WORLD_MOD_ADR, 1, "IWRAM"),
+                    (BGM_ID_ADR, 1, "IWARM")       
                 ])
                 item_award_panel = int.from_bytes(item_award_panelb)
-                if item_award_panel != 0:
+                world_num = int.from_bytes(world_numb) + 1
+                bgm_id = int.from_bytes(bgm_idb)
+                if world_num == 8 and not bgm_id == 0x22:
+                    logger.debug('In Nightmare Fight and not in Wizard phase, do nothing')
+                elif item_award_panel != 0:
                     logger.debug(f'Item to award already paneled, do nothing')
-
+                
                 else:    
                     #Calc id to put in the item award control panel address, if any
                     current_item = self.item_queue[0] #This will be the readable item id
@@ -415,13 +422,20 @@ class KirbyNIDLClient(BizHawkClient):
                         self.item_queue = self.item_queue[1:]
 
             #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
+            #Also don't heal if he's at 0 hp (ie, pit death)
             if self.hp_bank > 0 and screen_mod == 0x8:
-                kirby_hpb, = await bizhawk.read(ctx.bizhawk_ctx, [
-                    (KIRBY_HP_EW_ADR, 1, "EWRAM")       
+                (kirby_hpb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
+                    (WORLD_MOD_ADR, 1, "IWRAM"),
+                    (BGM_ID_ADR, 1, "IWARM")       
                 ])
                 kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
+                world_num = int.from_bytes(world_numb) + 1
+                bgm_id = int.from_bytes(bgm_idb)
                 now = time.time()
-                if kirby_hp < self.kirby_max_hp and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
+                #Not in Fountian of Dreams or in FoD and Nightmare Wizard fight has begun
+                nightmare_filter = (world_num != 8) or (world_num == 8 and bgm_id == 0x22)  
+                if nightmare_filter and kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
                     logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
                     await bizhawk.write(ctx.bizhawk_ctx,
                             [(ITEM_AWARD_ADR, [1], "IWRAM")]
@@ -494,16 +508,28 @@ class KirbyNIDLClient(BizHawkClient):
                 pickup_bitarr = int.from_bytes(pickup_bitarrb,'little')
                 if self.current_pickup_bitarr == -1: #freshly entered a new level (which may have pickups already in the array). Set current bitarr to the read value and do nothing else
                     self.current_pickup_bitarr = pickup_bitarr
-                    new_bit = 0
+                    new_bits = 0
                 else:
-                    new_bit = pickup_bitarr ^ self.current_pickup_bitarr
-
-                if new_bit != 0: #The bit array changed, send the check now
+                    new_bits = pickup_bitarr ^ self.current_pickup_bitarr
                     self.current_pickup_bitarr = pickup_bitarr
+
+                #calculate the "1's" in the new bit array by checking each smallest digit and right shifting until empty
+                new_ids = []; p = 0
+                while new_bits:
+                    if new_bits & 1:
+                        new_ids.append(p+1) #+1 because ID's are 1-indexed, position is 0-indexed
+                    new_bits >>= 1
+                    p+= 1
+
+                loc_ids = []
+                for new_id in new_ids:
                     if world_num + 1 == 6 and level_num + 1 == 6: #Carve out for level 6-6, where 8 UFOs take up the first 8 item id slots
-                        pickup_id = new_bit.bit_length() - 8
+                        if pickup_id > 8:
+                            pickup_id = new_id - 8
+                        else:
+                            break ##if id is 1-8, it's one of the UFO's
                     else:
-                        pickup_id = new_bit.bit_length() #1st item id = 1, effectively 1-indexed
+                        pickup_id = new_id #1st item id = 1, effectively 1-indexed
                     loc_id_readable = (world_num+1)*100 + (level_num+1)*10 + pickup_id 
                     loc_id = loc_id_readable + KNIDL_BASE_ID
                     loc_name = None #Technically we don't need to find the location name here, but it's convenient for logging 
@@ -513,10 +539,12 @@ class KirbyNIDLClient(BizHawkClient):
                         logger.warning(f'Attempted to find location name for nonexistent id: {loc_id_readable} (readable). Pass')
                     if loc_name: 
                         logger.info(f'Attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
-                        await ctx.send_msgs([{
-                            "cmd": "LocationChecks",
-                            "locations": [LOCATION_NAME_TO_ID[loc_name]]
-                        }])
+                        loc_ids.append(LOCATION_NAME_TO_ID[loc_name])
+                if loc_ids:
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": loc_ids
+                    }])
 
 
                 ##Boss Checks -- look for the Kirby Dance BGM ID

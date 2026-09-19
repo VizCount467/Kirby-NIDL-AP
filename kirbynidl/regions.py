@@ -58,9 +58,9 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
     else:
         req_pieces = int(world.options.req_pieces_prc/100 * world.options.pieces_in_pool)
     if req_pieces > world.options.pieces_in_pool:
-        raise Exception('Error in Star Rod Piece Options: number of required pieces greater than amount in pool')
+        raise Exception('Error in Star Rod Piece Options: number of required pieces cannot be greater than amount in pool')
     if req_pieces < 7:
-        raise Exception('Error in Received Star Rod Piece Options: number of required pieces < 7 (percent set too low)')
+        raise Exception('Error in Received Star Rod Piece Options: number of required pieces is less than 7 (percent set too low)')
     #Calculate the required pieces for each boss
     req_pieces_per_boss = int(req_pieces/7)
 
