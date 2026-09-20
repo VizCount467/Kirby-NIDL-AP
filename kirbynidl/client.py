@@ -111,7 +111,6 @@ class KirbyNIDLClient(BizHawkClient):
         #Internal data setup
         self.last_received_index = 0 #index of last item received; needed so we don't apply filler pickup items multiple times
         self.detected_goal_game = False #flag to prevent repeated send of level clear check during a goal game
-        self.door_locked = False
         self.initial_flags_written = False
         self.init_startup = True
         self.sync_counter = 0
@@ -131,8 +130,9 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_arena_check = False
         self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.switches_pressed = False
-        self.level_clear_flag_set = False
         self.req_pieces = None
+        self.bosses_count = 0
+        self.level_status_updated = True
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -211,20 +211,20 @@ class KirbyNIDLClient(BizHawkClient):
             # Also set Kirby's max vitality here too
             # This strategy is a problem if savestates are used, but that's whatever for now
             if (not self.initial_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
+                #set the level clear flags for levels in all CLEARED worlds to 02
+                self.bosses_count = len([l for l in ctx.locations_checked if ' - Boss' in LOCATION_ID_TO_NAME[l]])
                 logger.info(f'Attempting to write clear flags to unlock all levels and big switches')
                 clear_flag_writes = []
-                for world_num, level_count in enumerate(LEVELS_PER_WORLD_INDEX):
+                for i in range(self.bosses_count+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
+                    level_count = LEVELS_PER_WORLD_INDEX[i]
                     for offset in range(level_count):
-                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + world_num*7 + offset, [0x2], "IWRAM"))
+                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
                 #Set Big Switch array (switches pressed) to all True
                 clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
                                     (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
                                     (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
                                     ]
                 self.switches_pressed = True
-                #Set "level clear count"
-                clear_flag_writes.append((LEVELS_CLEARED_ADR,[0x06],'IWRAM'))
-                #logger.debug(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -241,14 +241,21 @@ class KirbyNIDLClient(BizHawkClient):
                      ]
                 )
                 self.initial_flags_written = True
-                self.level_clear_flag_set = True
+                self.level_status_updated = True
 
-            #If on the world intro cutscene, set the level count address back to 6 (it resets on beating a boss)
-            if screen_mod == 0x7 and not self.level_clear_flag_set:
-                logger.info('Setting level clear counter to 06')
-                await bizhawk.write(ctx.bizhawk_ctx,[(LEVELS_CLEARED_ADR,[0x06],'IWRAM')])
-                self.level_clear_flag_set = True
-
+            #If on the world intro cutscene, record the number of bosses beaten
+            if screen_mod == 0x7 and not self.level_status_updated:
+                self.bosses_count = len([l for l in ctx.locations_checked if ' - Boss' in LOCATION_ID_TO_NAME[l]])
+                logger.info(f'Attempting to write clear flags to unlock all levels and big switches')
+                clear_flag_writes = []
+                for i in range(self.bosses_count+1):
+                    level_count = LEVELS_PER_WORLD_INDEX[i]
+                    for offset in range(level_count):
+                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
+                await bizhawk.write(
+                    ctx.bizhawk_ctx, clear_flag_writes
+                )
+                self.level_status_updated = True
 
             
             #while in a level or the OW, check to see if there are items to award
@@ -374,7 +381,7 @@ class KirbyNIDLClient(BizHawkClient):
                 (item_award_panelb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (ITEM_AWARD_ADR, 1, "IWRAM"),
                     (WORLD_MOD_ADR, 1, "IWRAM"),
-                    (BGM_ID_ADR, 1, "IWARM")       
+                    (BGM_ID_ADR, 1, "IWRAM")       
                 ])
                 item_award_panel = int.from_bytes(item_award_panelb)
                 world_num = int.from_bytes(world_numb) + 1
@@ -423,18 +430,20 @@ class KirbyNIDLClient(BizHawkClient):
 
             #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
             #Also don't heal if he's at 0 hp (ie, pit death)
-            if self.hp_bank > 0 and screen_mod == 0x8:
-                (kirby_hpb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
+            if self.hp_bank > 0 and screen_mod in (0x8, 0x13):
+                (kirby_hpb, world_numb, bgm_idb, boss_hpb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
                     (WORLD_MOD_ADR, 1, "IWRAM"),
-                    (BGM_ID_ADR, 1, "IWARM")       
+                    (BGM_ID_ADR, 1, "IWRAM"),
+                    (BOSS_HP_ADR, 1, 'IWRAM')       
                 ])
                 kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
                 world_num = int.from_bytes(world_numb) + 1
                 bgm_id = int.from_bytes(bgm_idb)
+                boss_hp = int.from_bytes(boss_hpb)
                 now = time.time()
-                #Not in Fountian of Dreams or in FoD and Nightmare Wizard fight has begun
-                nightmare_filter = (world_num != 8) or (world_num == 8 and bgm_id == 0x22)  
+                #Not in Fountian of Dreams or in FoD and Nightmare Wizard fight has begun (consider experimenting with kirby actionable flag?)
+                nightmare_filter = (world_num != 8) or (world_num == 8 and bgm_id == 0x22 and boss_hp > 0 and boss_hp < 0x40)  
                 if nightmare_filter and kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
                     logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
                     await bizhawk.write(ctx.bizhawk_ctx,
@@ -475,10 +484,8 @@ class KirbyNIDLClient(BizHawkClient):
             if not screen_mod == 0x13:
                 self.sent_arena_check = False
                 self.prev_boss_hp = 100
-            if not screen_mod == 0x5: #Always unlock doors when not in the overworld
-                self.door_locked = False
-            if not screen_mod == 0x7: #make sure this resets for every level intro cutscene
-                self.level_clear_flag_set = False
+            if not screen_mod == 0x7: #assume we need to update the level clear status every time we see a world intro cutscene (ie, beat a boss)
+                self.level_status_updated = False
 
                 
             #In-Level Checks
@@ -524,7 +531,7 @@ class KirbyNIDLClient(BizHawkClient):
                 loc_ids = []
                 for new_id in new_ids:
                     if world_num + 1 == 6 and level_num + 1 == 6: #Carve out for level 6-6, where 8 UFOs take up the first 8 item id slots
-                        if pickup_id > 8:
+                        if new_id > 8:
                             pickup_id = new_id - 8
                         else:
                             break ##if id is 1-8, it's one of the UFO's

@@ -54,6 +54,7 @@
 .definelabel Mix_Change_Continue, 0x080481B2
 
 .definelabel Big_Switch_Exists_Check, 0x080B5242
+.definelabel Current_World_Progression_Check, 0x08028500
 
 
 ;All functions below end with bx rN, so set lr before calling them
@@ -110,6 +111,12 @@
 ;Override the "check if Big Switch should be loaded" variable load with a straight write of #0x0 (No switches are ever pressed always)
 .org Big_Switch_Exists_Check
     mov r0, #0x0
+    nop
+    .pool
+
+;Override the "check levels in world" progression load to always write 06 (all levels are always cleared, check their "switch pressed" flag)
+.org Current_World_Progression_Check
+    mov r0, #0x6
     nop
     .pool
 

@@ -80,4 +80,8 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
     - Location checks now allow multiple ID's to be sent in one tick of the client instead of assuming only 1 (checks would be eaten)
     - Healing should NOT be attempted in the Nightmare Orb phase (again)
     - Healing SHOULD be allowed in Arenas
+    - Healing should NOT be attempted in the event of a pit death (HP = 0)
+- 9/19/26: Bug testing. Attempted following bug fixes
+    - Warp Star stations are all initially barred, then have all 7 worlds unlocked upon reset
+    - Useless healing attempts in the intro to the Nightmare Wizard fight (getting there!)
 
