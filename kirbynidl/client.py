@@ -52,6 +52,8 @@ WORLD_NAMES_INDEXED = [
 ]
 #Number of levels in world {[index]+1}
 LEVELS_PER_WORLD_INDEX = (4,5,6,6,6,6,6)
+#Number of big switches in world {index}
+BIGSWITCHES_PER_WORLD_INDEX = (0,0,2,3,4,6,2)
 #List of all abilities with their in-game ID and bit index. ie, list[1] = fire
 ABILITY_LIST_INDEXED = [
     '','Fire','Spark','Cutter',
@@ -72,6 +74,8 @@ FILE_NUMBER_ADR = 0xB074 #Also the sound vs music variable in the sound test
 KIRBY_HP_EW_ADR = 0x5588
 KIRBY_MAX_HP_ADR = 0x5580
 PICKUP_FLAG_ADR = 0x7BF0
+EW_CLEAR_FLAGS_START = 0xE628
+EW_SWITCHEXISTS_BITARR = 0xE612
 ##IWRAM ADDRESSES
 BGM_ID_ADR = 0x0490
 SCREEN_MOD_ADR = 0x23D8 
@@ -96,7 +100,7 @@ ABILITY_LOCK_BITARR = 0x78C0
 class KirbyNIDLClient(BizHawkClient):
     game = "Kirby Nightmare in Dream Land"
     system = "GBA"
-    patch_suffix = ".apkirbynidl"
+    patch_suffix = ".apknidl"
 
     def __init__(self):
         super().__init__()
@@ -133,6 +137,10 @@ class KirbyNIDLClient(BizHawkClient):
         self.req_pieces = None
         self.bosses_count = 0
         self.level_status_updated = True
+        self.switchexists_bitarr = 0
+        self.file_number = 0
+        self.nightmare_start_time = 0
+        self.NIGHTMARE_TIME_DELAY = 8 #Approximately 8 seconds before nightmare fight starts
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -211,20 +219,36 @@ class KirbyNIDLClient(BizHawkClient):
             # Also set Kirby's max vitality here too
             # This strategy is a problem if savestates are used, but that's whatever for now
             if (not self.initial_flags_written) and (screen_mod == 0x7 or screen_mod == 0x8):
+                #Find the File number
+                file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (FILE_NUMBER_ADR, 1, "EWRAM")       
+                ])
+                self.file_number = int.from_bytes(file_numberb)
                 #set the level clear flags for levels in all CLEARED worlds to 02
-                self.bosses_count = len([l for l in ctx.locations_checked if ' - Boss' in LOCATION_ID_TO_NAME[l]])
-                logger.info(f'Attempting to write clear flags to unlock all levels and big switches')
+                logger.info(ctx.checked_locations)
+                self.bosses_count = len([l for l in ctx.checked_locations if ' - Boss' in LOCATION_ID_TO_NAME[str(l)]])
+                logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Boss count is {self.bosses_count}')
                 clear_flag_writes = []
                 for i in range(self.bosses_count+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
                     level_count = LEVELS_PER_WORLD_INDEX[i]
                     for offset in range(level_count):
                         clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
-                #Set Big Switch array (switches pressed) to all True
-                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[0xFF],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+1,[0xFF],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+2,[0x1],'IWRAM')
+                        clear_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [0x2], "EWRAM"))
+                #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
+                n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.bosses_count+1)])
+                self.switchexists_bitarr = (1 << n_switches) - 1
+                switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
+                logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
+                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
+                                    (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
+                                    (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
+                                    (EW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'EWRAM'), #bit padding is different in EWRAM. Probably a cleaner way to do this, but eh
+                                    (EW_SWITCHEXISTS_BITARR-1,[switchexists_bytes[1]],'EWRAM'),
+                                    (EW_SWITCHEXISTS_BITARR-2,[switchexists_bytes[2]],'EWRAM')
                                     ]
                 self.switches_pressed = True
+                logger.info(f'Clear Flags Write List is')
+                logger.info(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -243,15 +267,33 @@ class KirbyNIDLClient(BizHawkClient):
                 self.initial_flags_written = True
                 self.level_status_updated = True
 
-            #If on the world intro cutscene, record the number of bosses beaten
+            #If on the world intro cutscene, update level and switch clear flags based on the number of bosses beaten
+            ##Note on checked locations: checked_locations is the server state variable, locations_checked is the local state variables. Yes, that's terrible
             if screen_mod == 0x7 and not self.level_status_updated:
-                self.bosses_count = len([l for l in ctx.locations_checked if ' - Boss' in LOCATION_ID_TO_NAME[l]])
-                logger.info(f'Attempting to write clear flags to unlock all levels and big switches')
+                self.bosses_count = len([l for l in ctx.checked_locations if ' - Boss' in LOCATION_ID_TO_NAME[str(l)]])
+                logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Boss count is {self.bosses_count}')
+                #Individual levels to 0x02
                 clear_flag_writes = []
                 for i in range(self.bosses_count+1):
                     level_count = LEVELS_PER_WORLD_INDEX[i]
                     for offset in range(level_count):
                         clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
+                        clear_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [0x2], "EWRAM"))
+                #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
+                n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.bosses_count+1)])
+                self.switchexists_bitarr = (1 << n_switches) - 1 
+                switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
+                logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
+                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
+                                    (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
+                                    (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
+                                    (EW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'EWRAM'), #bit padding is different in EWRAM. Probably a cleaner way to do this, but eh
+                                    (EW_SWITCHEXISTS_BITARR-1,[switchexists_bytes[1]],'EWRAM'),
+                                    (EW_SWITCHEXISTS_BITARR-2,[switchexists_bytes[2]],'EWRAM')
+                                    ]
+                self.switches_pressed = True
+                logger.info(f'Clear Flags Write List is')
+                logger.info(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -264,13 +306,13 @@ class KirbyNIDLClient(BizHawkClient):
                 file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (FILE_NUMBER_ADR, 1, "EWRAM")       
                 ])
-                file_number = int.from_bytes(file_numberb)
-                sync_adr = SYNC_ADR_BASE + file_number*0x100
+                self.file_number = int.from_bytes(file_numberb)
+                sync_adr = SYNC_ADR_BASE + self.file_number*0x100
                 sync_counterb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (sync_adr, 1, "EWRAM")       
                 ])
                 sync_counter_ingame = int.from_bytes(sync_counterb, "little")
-                logger.info(f'Sync counter according to game RAM is {sync_counter_ingame} (file number {file_number}) (ADR {hex(SYNC_ADR_BASE + file_number*0x100)})')
+                logger.info(f'Sync counter according to game RAM is {sync_counter_ingame} (file number {self.file_number}) (ADR {hex(SYNC_ADR_BASE + self.file_number*0x100)})')
                 if sync_counter_ingame == 0xFF: #value should start at 0xFF on a new file 
                     self.sync_counter = 0
                 else:
@@ -431,20 +473,21 @@ class KirbyNIDLClient(BizHawkClient):
             #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
             #Also don't heal if he's at 0 hp (ie, pit death)
             if self.hp_bank > 0 and screen_mod in (0x8, 0x13):
-                (kirby_hpb, world_numb, bgm_idb, boss_hpb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                (kirby_hpb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
                     (WORLD_MOD_ADR, 1, "IWRAM"),
                     (BGM_ID_ADR, 1, "IWRAM"),
-                    (BOSS_HP_ADR, 1, 'IWRAM')       
+                    ##(BOSS_HP_ADR, 1, 'IWRAM')       
                 ])
                 kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
                 world_num = int.from_bytes(world_numb) + 1
                 bgm_id = int.from_bytes(bgm_idb)
-                boss_hp = int.from_bytes(boss_hpb)
                 now = time.time()
-                #Not in Fountian of Dreams or in FoD and Nightmare Wizard fight has begun (consider experimenting with kirby actionable flag?)
-                nightmare_filter = (world_num != 8) or (world_num == 8 and bgm_id == 0x22 and boss_hp > 0 and boss_hp < 0x40)  
-                if nightmare_filter and kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
+                #consider experimenting with kirby actionable flag to check when it's okay to heal in Nightmare Wizard?
+                if not self.nightmare_start_time and (world_num == 8 and bgm_id == 0x22):
+                    self.nightmare_start_time = now 
+                if (world_num != 8 or (world_num == 8 and bgm_id == 0x22 and now - self.NIGHTMARE_TIME_DELAY > self.nightmare_start_time)) and (
+                    kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY): 
                     logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
                     await bizhawk.write(ctx.bizhawk_ctx,
                             [(ITEM_AWARD_ADR, [1], "IWRAM")]
@@ -455,8 +498,6 @@ class KirbyNIDLClient(BizHawkClient):
       
             
             #If a goal game is detected, send the level clear check. 
-            #TODO: Not sure if it's fine to attempt the send the check when it's already checked, but this does not check for the location already being sent
-            #A similar pattern will be followed for big switches (screen mod = 9)
             if screen_mod == 0xA and not self.detected_goal_game:
                 logger.info(f'Begin Goal Game Check Sequence')
                 self.detected_goal_game = True
@@ -479,6 +520,7 @@ class KirbyNIDLClient(BizHawkClient):
                 self.detected_goal_game = False
             if not screen_mod == 0x8:
                 self.sent_boss_check = False
+                self.nightmare_start_time = 0 #if we exit the Nightmare fight for some reason in the middle of it, reset
             if not screen_mod == 0x9:
                 self.sent_bigswitch_check = False
             if not screen_mod == 0x13:
@@ -490,7 +532,6 @@ class KirbyNIDLClient(BizHawkClient):
                 
             #In-Level Checks
             if screen_mod == 0x8:
-
                 #Pickup Item checks via the flags starting at EW 7BF0
                 #TODO: abstract the repeated pattern of bizhawk.read + int.from_bytes into a function that can handle 1 or multiple var reads
                 #Note that we only need the trailing comma syntax

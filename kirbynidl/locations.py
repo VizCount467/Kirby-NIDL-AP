@@ -83,6 +83,7 @@ LOCATION_TABLE_READABLE = {
 
     "Butter Building 3 - Level Clear" : 330,
     "Butter Building 3 - Tomato (Parallel Rooms)" : 331,
+    "Butter Building 3 - 1up (Spikes Room)" : 332,
 
     "Butter Building 4 - Level Clear" : 340,
     "Butter Building 4 - 1up (Updraft Room 1)" : 342,

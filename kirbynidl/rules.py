@@ -327,7 +327,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     ##Arenas Logic
     for w in WORLD_NAMES_INDEXED[1:-1]: #only worlds 2-6 have Arenas
         set_rule(world.get_location(f"{w} - Arena Clear"),
-                lambda state: state.has(f'{w} Arena Key', world.player))
+                lambda state, wn=w: state.has(f'{wn} Arena Key', world.player))
 
     
     #Also set the rule for the victory event

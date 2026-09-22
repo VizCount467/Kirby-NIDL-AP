@@ -32,6 +32,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 
 ## Features Planned To be Implemented
 - Death link Support
+- Fully fix Warp Star Stations
 
 ## Speculative Features
 
@@ -42,16 +43,16 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin) (also complicates ability logic)
 - Enemy Ability Shuffle (immensely complicates ability logic)
-- Option to use open Warp Star stations to skip bosses (slightly complicates logic, requires asm tinkering)
-- Option to play as Meta Knight (Kirby steps in at final boss? Stop at Dedede?)
+- Option to use open Warp Star stations to skip bosses (slightly complicates logic, requires ASM tinkering)
+- Option to play as Meta Knight (Kirby still plays the final boss? Stop at Dedede?)
 - Energy Link Support
 - On-Screen AP Text (via either the nightmare defeated story narration or the label that appears at the top of the screen in each overworld lobby) (maybe the credits too??)
 
 ## Known Bugs and Issues
 
-- Warp Star stations may not open upon beating the boss, and all 7 world may be available from the start (ack!)
-- Generation may be unoptimized. Gen with this in big games at your own risk!
-- The interaction of savestates and the various client-dependent game interactions is completely unknown (minor - use save states at your own risk!)
+- Warp Star stations may not open upon beating the boss, and not all unlocked worlds may be acessible. Resetting the game should fix this
+- Getting grabbed by certain midbosses with invincibility active may still hurt Kirby (and can make the invincibility theme play until the next room)
+- The interaction of savestates and the various client-dependent game interactions is completely unknown -- use save states at your own risk!
 
 ## Latest Updates
 
@@ -84,4 +85,8 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 - 9/19/26: Bug testing. Attempted following bug fixes
     - Warp Star stations are all initially barred, then have all 7 worlds unlocked upon reset
     - Useless healing attempts in the intro to the Nightmare Wizard fight (getting there!)
+- 9/21/26: Final Bug Testing. Following Fixes applied
+    - Warp Star stations will not have all 7 worlds unlocked to start, even after a reset
+    - Added missing spike room 1up in 3-3
+    - Fixed Arena Key logic and added Arena Key test
 

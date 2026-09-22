@@ -10,7 +10,7 @@ from .settings import KirbyNIDLSettings
 class KirbyNIDLPatch(APProcedurePatch):
     game = "Kirby Nightmare in Dream Land"
     hash = "35ae64b0f27e60107c14ab956f6cdf70"
-    patch_file_ending = ".apkirbynidl"
+    patch_file_ending = ".apknidl"
     result_file_ending = ".gba"
 
     procedure = [

@@ -86,6 +86,11 @@ class TestBasic(KNIDLTestBase):
             self.collect(self.get_item_by_name('Throw'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
+            loc = self.world.get_location("Ice Cream Island - Arena Clear")
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Ice Cream Island Arena Key'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
     def test_ability_availibility(self) -> None:
         with self.subTest('Test Ability Availibility'):
             loc = self.world.get_location('Ice Cream Island 5 - 1up (Metal Blocks 1)')

@@ -1,11 +1,10 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the in-progress Kirby Nightmare in Dream Land Archipelago implementation project (developer VizCount). This document should contain all the necessary information to understand how to play, the alterations made to the base game, and how to use the options.
-
+Welcome to the BETA Kirby Nightmare in Dream Land Archipelago implementation project (developer VizCount). This document should contain all the necessary information to understand how to play, the alterations made to the base game, and how to use the options.
 
 ## General Information
 
-The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. The number of Star Rod pieces that exist can be adjusted in the options, with a minimum of 7 and maximum of 56. The number of pieces that are absolutely required can be less than the total, also adjustable in the options (7 is still the minimum required). The cumulative piece requirement to fight each boss is evenly distributed (ie 2 for W1, 4 for W2, 6 for W3 with 14 total pieces) with any remainder going to the final boss requirement. This requirement per boss is NOT displayed in game, so double check your options if unsure. 
+The goal of Kirby Nightmare in Dream Land is to collect all pieces of the Star Rod and defeat Nightmare at the end of the Fountain of Dreams. By default, all levels are unlocked, but pieces of the Star Rod are required to enter Boss levels. The number of Star Rod pieces that exist can be adjusted in the options, with a minimum of 7 and maximum of 56. The number of pieces that are absolutely required can be less than the total, also adjustable in the options (7 is still the minimum required). The cumulative piece requirement to fight each boss is evenly distributed (ie 2 for W1, 4 for W2, 6 for W3 with 14 total pieces) with any remainder going to the final boss requirement. This requirement per boss is NOT displayed in game, so double check your Options if unsure. 
 
 Clearing every normal level, boss, and Arena challenge will grant a check, as well as every Big Switch. Every food item and 1up in normal levels is also a check. Maxim tomatoes given in arenas are not checks (only clearing the Arena itself is), and 1ups given out in minigames are NOT checks. 
 
@@ -13,8 +12,9 @@ Kirby cannot obtain any copy abilities until that copy ability is unlocked via A
 
 All items, inlcuding client-side unblockers (door keys, unlocked abilities, Star Rod pieces) will play a specific sound effect when received based on their item type (ability, door key, Star Rod...). However, you must watch the AP tracker feed to know which specific item was received, as well as what items were sent when you check locations. 
 
-Kirby Nightmare in Dreamland automatically saves your progress after every level and boss clear. Big Switches will always appear in levels, even if their location has already been checked. Consumable items will also reappear, but not in the same play session. If you quit and begin a new session, the consumable items awarded in previous sessions will NOT be awarded again. As in, the items awarded by the client DO sync between sessions by use of in-game save RAM. 
+Kirby Nightmare in Dreamland automatically saves your progress after every level and boss clear. Big Switches will always appear in levels, even if their location has already been checked. Consumable items will also reappear, but not in the same play session. If you quit and begin a new session, the consumable items awarded in previous sessions will NOT be awarded again. In other words, the items awarded by the client DO sync between sessions by use of in-game save RAM. 
 
+This is a BETA release -- check the Github readme.md file for known bugs/issues
 Make sure to connect to the client before exiting the title screen / file menu. 
 I canot guarantee anything in this mod is compatible with the vanilla multiplayer features. 
 Finally, use savestates as your own risk!
@@ -23,8 +23,8 @@ Finally, use savestates as your own risk!
 
 ### Notes on Ability Logic: 
 - Logic will expect you to take abilities from one level to another. If you have access to an ability anywhere, the logic expects you to be able to use it anywhere
-- Light is logically required for the 4-6 Big Switch, but NOT for the 3-6 1up. Of course, you can get the 4-6 Big Switch any time if you know where it is
-- Items placed behind gordos or spikes will expect you to have an ability like Burning that allows obtaining them without getting hit. Damage boosts are considered OOL, even on the "Advanced Logic" setting. 
+- Light is logically required for the 4-6 Big Switch, but NOT for the 3-6 1up. Of course, you can get the 4-6 Big Switch any time if you know where the hidden door is.
+- Items placed behind gordos or spikes will expect you to have an ability like Burning that allows obtaining them without getting hit. As in, damage boosts are considered Out Of Logic, even on the "Advanced Logic" setting. 
 
 ### Notes on Mixes: 
 - No locked abilities can be obtained through the mix roulette, only unlocked abilities. 
@@ -37,7 +37,7 @@ Healing items do not take effect directly. Instead, they are added to an "HP Ban
 - Maxim Tomtos are worth N-1 HP, where N is the current Max HP.
 
 Upon beginning a new game session, the HP Bank resets. Previously obtained healing items are not added back in. 
-Finally, due to game limitations, Kirby cannot heal during the Nightmare Orb phase. 
+Finally, due to ~~technical limitations~~ Nightmare's dark power, Kirby cannot heal during the Nightmare Orb phase. 
 
 ### Note on Meta Knight:
 You do NOT need to have Sword unlocked to fight and beat Meta Knight in World 6. By the special rules of this fight, you can always pick up the Sword ability, and if you had no ability initially, you will keep Sword afterwards (Otherwise, you will revert to you original ability, which is Vanilla behavior). This "extra sword" from Meta Knight does NOT unlock Sword, and is NOT factored into logic. 
@@ -45,9 +45,9 @@ You do NOT need to have Sword unlocked to fight and beat Meta Knight in World 6.
 ### Note on Goaling: 
 Specifically, the client detects the Goal Event via the "moon explosion" cutscene that plays after defeating Nightmare's second phase. It does NOT trigger immediately after depleting the boss's health bar, so be a little patient at the end!
 
-### Note on Files: 
-Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items
-
+### Notes on Files: 
+- Starting a new file with collected items on the server will cause all collected items to be awarded to the new file as if they were newly sent, including HP items. 
+- Items are "synced" to each file individually, and if a file is erased, that sync state will be lost. 
 
 
 
