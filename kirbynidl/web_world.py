@@ -25,7 +25,7 @@ class KirbyNIDLWebWorld(WebWorld):
     # option_groups = option_groups
     # options_presets = option_presets
 
-    bug_report_page = "my_GH_user_page?"  #TODO: update with GH user page if we publish
+    bug_report_page = "https://github.com/VizCount467" 
 
     # If we have option groups and/or option presets, we need to specify these here as well.
     #option_groups = option_groups

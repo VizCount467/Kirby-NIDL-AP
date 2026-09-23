@@ -4,11 +4,13 @@ Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by VizCo
 
 ## General Structure
 
-All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. ie, you must collect 1 star rod piece to fight the World 1 boss, 2 for the World 2 boss. Collect all 7 Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See the guide in the "docs" folder for more detailed game information. 
+All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. Collect all necessary Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See the guide in the "docs" folder for more detailed game information and configurable options. 
 
 ## Installation
 
-Place the kirbynidl folder in your Archipelago worlds directory and run Archipelago from source. You will also need to place a US Kirby Nightmare in Dreamland ROM in your main Archipelago directory with the correct file name if not prompted by the patch sequence. Other than Source, I can't guarantee any other setup will work yet. Check the "setup_en" file in the "docs" folder for an alternative instllation summary. 
+Download the kirbynidl.apworld file from the latest GitHub release and install it by opening it the Archipelago program or moving it into your "custom worlds" folder. Create or Join a game to get a .apknidl patch file. Open this patch file with the AP program, and select your US Kirby Nightmare in Dream Land ROM file if prompted. From there, Bizhawk should open automatically if your settings are configured properly. However, you must manually enter the Server and Port information in the client when it starts up. 
+
+See the setup file in the docs for complete details.
 
 ## Features Currently Implemented
 - Locations
@@ -21,18 +23,17 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
     - Consumable Pickups (Pep Drinks, 1ups, Maxim Tomatoes, Invincibility Candy)
         - Health items are not awarded immediately, but added to a "Bank". HP is automatically restored from the bank as you take damage.
         - Consumable items are single-use. If you quit and re-open the same save file on the same saved game, you will not receive items received during the last session (the HP bank also resets)
-    - "Star Rod Piece" (unlocks world Boss and next world)
+    - Star Rod Piece - unlocks world Boss and next world
     - Unlock Copy Abilities 
     - Unlock Minigames (Bomb Rally, Air Grind, Quick Draw) and other side doors (Arena, Museum, Warp Station) for each world
         - NOTE: Doors that are NOT locked behind big switches in the vanilla game, ie the World 1 Museum, start as locked. All possible doors are shuffled in!
-    - Vitality (Max HP Upgrades) - currently fixed at 3 upgrades with 3 Max HP to start
+    - Vitality (Max HP Upgrades) - currently fixed at 3 upgrades with 3 Max HP to start, configurable in the options
         - Vitality pieces also affect the amount of HP you get from consumables. 
             - Pep Drinks give 1 HP at 3 Max HP or lower, 2 HP otherwise
             - Maxim Tomatos give N-1 HP, where N is the Max HP
 
 ## Features Planned To be Implemented
 - Death link Support
-- Fully fix Warp Star Stations
 
 ## Speculative Features
 
@@ -51,6 +52,7 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
 ## Known Bugs and Issues
 
 - Warp Star stations may not open upon beating the boss, and not all unlocked worlds may be acessible. Resetting the game should fix this
+- If you are disconnected from the server and beat a boss, that location check will be permanently LOST since bosses cannot be refought on the same file
 - Getting grabbed by certain midbosses with invincibility active may still hurt Kirby (and can make the invincibility theme play until the next room)
 - The interaction of savestates and the various client-dependent game interactions is completely unknown -- use save states at your own risk!
 
@@ -89,4 +91,9 @@ Place the kirbynidl folder in your Archipelago worlds directory and run Archipel
     - Warp Star stations will not have all 7 worlds unlocked to start, even after a reset
     - Added missing spike room 1up in 3-3
     - Fixed Arena Key logic and added Arena Key test
+- 9/22/26: Final-er Bug Testing. Preparations for release
+    - Update docs to prep for release
+    - Enable automatic patching from patch file and prompt for initial ROM file selection
+    - Fix implementation of copy abilities and side doors initially unlocked options
+    - Fix Arena checks being awarded immediately at the start of the fight
 

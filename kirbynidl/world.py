@@ -6,7 +6,7 @@ import pkgutil, os
 from worlds.AutoWorld import World
 
 # Imports of your world's files must be relative.
-from . import items, locations, regions, rules, web_world, rom, settings
+from . import items, locations, regions, rules, web_world, rom
 from . import options as kirbynidl_options  # rename due to a name conflict with World.options
 
 
@@ -29,7 +29,7 @@ class KirbyNIDLWorld(World):
 
     #Seemingly required to get meta generation settings to work and such?
     settings_key = "KNIDL_Settings"
-    settings: ClassVar[settings.KirbyNIDLSettings]
+    settings: ClassVar[rom.KirbyNIDLSettings]
 
     # The World class must have a static location_name_to_id and item_name_to_id, those names exactly.
     # We define these in regions.py and items.py respectively, just set them here.

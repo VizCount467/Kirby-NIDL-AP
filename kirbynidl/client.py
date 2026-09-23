@@ -15,7 +15,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
 
 ###DATA
 ##APWORLD STUFF
@@ -130,7 +130,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_boss_check = False
         self.sent_bigswitch_check = False
         self.sent_victory_check = False
-        self.prev_boss_hp = 100
+        self.prev_boss_hp = 0
         self.sent_arena_check = False
         self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.switches_pressed = False
@@ -283,7 +283,7 @@ class KirbyNIDLClient(BizHawkClient):
                 n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.bosses_count+1)])
                 self.switchexists_bitarr = (1 << n_switches) - 1 
                 switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
-                logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
+                logger.debug(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
                 clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
                                     (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
                                     (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
@@ -292,8 +292,6 @@ class KirbyNIDLClient(BizHawkClient):
                                     (EW_SWITCHEXISTS_BITARR-2,[switchexists_bytes[2]],'EWRAM')
                                     ]
                 self.switches_pressed = True
-                logger.info(f'Clear Flags Write List is')
-                logger.info(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -364,6 +362,11 @@ class KirbyNIDLClient(BizHawkClient):
                         ]
                     )
 
+                if ctx.slot_data.get('lock_bonus_doors') == False: #If side doors are not locked, refresh the list with just the boss doors
+                    self.locked_door_names = []
+                    for i in range(len(WORLD_NAMES_INDEXED)):
+                        self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} Boss')
+
                 #Look at the number of star rod pieces and unlock the corresponding boss doors
                 star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
                 boss_door_count = min(
@@ -381,6 +384,7 @@ class KirbyNIDLClient(BizHawkClient):
                 locked_door_writes = []
                 for i,w in enumerate(WORLD_NAMES_INDEXED):
                     door_bits = []
+                    logger.info(f'locked door names before write is {self.locked_door_names}')
                     for ldn in self.locked_door_names:
                         if w in ldn:
                             door_type = ldn.split(w)[1].strip() #Map the door in the locked door list to its index in the bit array
@@ -394,7 +398,10 @@ class KirbyNIDLClient(BizHawkClient):
 
                 #Similarly, based on the abilities in the locked abilities list, calculate what to write to the "mouthguard" bit array
                 #This is simpler since the entire thing fits in <=4 bytes
-                ability_bits = [1 if a in self.locked_abilities else 0 for a in ABILITY_LIST_INDEXED] 
+                if ctx.slot_data.get('lock_copy_abilities') == False: #If copy abilities are not locked, write all 0's
+                    ability_bits = [0 for _ in ABILITY_LIST_INDEXED]
+                else:
+                    ability_bits = [1 if a in self.locked_abilities else 0 for a in ABILITY_LIST_INDEXED] 
                 #because empty string is in the master list but never the locked abilities, the first bit is always 0
                 ability_bits.reverse() #Reverse because the first bit will become the highest "place" in the bitarr
                 ability_bitarr = 0
@@ -525,7 +532,7 @@ class KirbyNIDLClient(BizHawkClient):
                 self.sent_bigswitch_check = False
             if not screen_mod == 0x13:
                 self.sent_arena_check = False
-                self.prev_boss_hp = 100
+                self.prev_boss_hp = 0
             if not screen_mod == 0x7: #assume we need to update the level clear status every time we see a world intro cutscene (ie, beat a boss)
                 self.level_status_updated = False
 
