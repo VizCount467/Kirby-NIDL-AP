@@ -46,9 +46,12 @@ You do NOT need to have Sword unlocked to fight and beat Meta Knight in World 6.
 Specifically, the client detects the Goal Event via the "moon explosion" cutscene that plays after defeating Nightmare's second phase. It does NOT trigger immediately after depleting the boss's health bar, so be a little patient at the end!
 
 ### Note on Files: 
-Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items
+Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items. 
 
-
+### Notes on Offline Play / Missable Locations
+- You must be connected to receive items and send checks. Any checks performed offline will not take effect; there is no snap-back/catch-up procedure for locations.
+- In-level pickup items will not respawn on the same play session. You must restart the game to collect them again. 
+- Since Bosses cannot be refought on the same file, if you beat a boss without being connected to send its location, that location will be permanently LOST on that file. To send the location, you must start a new file and fight that boss again while connected. This is not that difficult due to the open world structure of the game, but still an issue that will be addressed. 
 
 
 ## Options

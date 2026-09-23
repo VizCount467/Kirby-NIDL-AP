@@ -1,16 +1,16 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation by VizCount. This game is currently PLAYABLE, but not yet finalized for release -- consider it in an "alpha" state. Development is ongoing, and any updates are summarized at the bottom of this readme file, as well as currently known bugs/issues.  
+Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This game is currently PLAYABLE and in an UNSTABLE BETA RELEASE phase. Feel free to play, but development is ongoing, and known bugs/issues are noted in this .readme file. Please report any bugs/issues to [the AP Discord thread](https://discord.com/channels/731205301247803413/1533318615057567885) in "future-game-design". 
 
 ## General Structure
 
-All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the requisite number of Star Rod Pieces. Collect all necessary Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See the guide in the "docs" folder for more detailed game information and configurable options. 
+All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the required number of Star Rod Pieces. Collect all necessary Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See [the guide in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/blob/master/kirbynidl/docs/en_Kirby_Nightmare_in_Dream_Land)for more detailed game information and info on the configurable options. 
 
 ## Installation
 
-Download the kirbynidl.apworld file from the latest GitHub release and install it by opening it the Archipelago program or moving it into your "custom worlds" folder. Create or Join a game to get a .apknidl patch file. Open this patch file with the AP program, and select your US Kirby Nightmare in Dream Land ROM file if prompted. From there, Bizhawk should open automatically if your settings are configured properly. However, you must manually enter the Server and Port information in the client when it starts up. 
+Download the kirbynidl.apworld file from the latest GitHub release and install it by opening it the Archipelago program or moving it into your "custom worlds" folder. From there, it should work the same as any other custom GBA AP game. 
 
-See the setup file in the docs for complete details.
+See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/blob/master/kirbynidl/docs/setup_en.md) for complete details.
 
 ## Features Currently Implemented
 - Locations
@@ -31,6 +31,11 @@ See the setup file in the docs for complete details.
         - Vitality pieces also affect the amount of HP you get from consumables. 
             - Pep Drinks give 1 HP at 3 Max HP or lower, 2 HP otherwise
             - Maxim Tomatos give N-1 HP, where N is the Max HP
+- Options
+    - Variable number of existing and required Star Rod Pieces
+    - Variable starting health and number of health upgrades
+    - Start with all Copy Abilities and/or bonus doors unlocked, if desired
+    - Toggle obscure/difficult tricks in location logic
 
 ## Features Planned To be Implemented
 - Death link Support
@@ -43,7 +48,7 @@ See the setup file in the docs for complete details.
     - Unlock individual levels (complicates ability logic)
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin) (also complicates ability logic)
-- Enemy Ability Shuffle (immensely complicates ability logic)
+- Enemy Ability Shuffle (complicates ability logic)
 - Option to use open Warp Star stations to skip bosses (slightly complicates logic, requires ASM tinkering)
 - Option to play as Meta Knight (Kirby still plays the final boss? Stop at Dedede?)
 - Energy Link Support
@@ -97,3 +102,7 @@ See the setup file in the docs for complete details.
     - Fix implementation of copy abilities and side doors initially unlocked options
     - Fix Arena checks being awarded immediately at the start of the fight
 
+## Credits and Shout-Outs
+
+- Thanks to the RetroAchievements community for getting me started with their RAM map documentation
+- Thanks to aquova and their [KNDL-Rando Repo](https://github.com/Aquova/KNDL-Rando) for additional RAM mapping and initial draft of an ability-locking system. 
