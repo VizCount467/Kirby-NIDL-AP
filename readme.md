@@ -4,7 +4,7 @@ Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This ga
 
 ## General Structure
 
-All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the required number of Star Rod Pieces. Collect all necessary Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See [the guide in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/blob/master/kirbynidl/docs/en_Kirby_Nightmare_in_Dream_Land)for more detailed game information and info on the configurable options. 
+All levels and doors are unlocked from the start, except for boss doors. You will not be able to enter the boss door until obtaining the required number of Star Rod Pieces. Collect all necessary Star Rod pieces and defeat Nightmare at the Fountain of Dreams to win. See [the guide in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/blob/master/kirbynidl/docs/en_Kirby_Nightmare_in_Dream_Land.md) for more detailed game information and info on the configurable options. 
 
 ## Installation
 

@@ -23,7 +23,7 @@ Open ArchipelagoLauncher.exe
 ## Connecting to a Server
 By default, opening a patch file will do steps 1-5 below for you automatically. Even so, this is good info to know if your session is disrupted for whatever reason.
 
-1. PKirby Nightmare in Dream Land uses Archipelago's BizHawk Client. If the client isn't still open from when you patched your game, you can re-open it from the launcher.
+1. Kirby Nightmare in Dream Land uses Archipelago's BizHawk Client. If the client isn't still open from when you patched your game, you can re-open it from the launcher.
 2. Ensure EmuHawk is running the patched ROM.
 3. In EmuHawk, go to Tools > Lua Console. This window must stay open while playing.
 4. In the Lua Console window, go to Script > Open Script….
