@@ -1,6 +1,6 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This game is currently PLAYABLE and in an UNSTABLE BETA RELEASE phase. Feel free to play, but development is ongoing, and known bugs/issues are noted in this .readme file. Please report any bugs/issues to [the AP Discord thread](https://discord.com/channels/731205301247803413/1533318615057567885) in "future-game-design". 
+Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This game is currently PLAYABLE and in an EARLY RELEASE phase. The client is stable and the game is functional, but some undetected bugs may still exist. Please report any bugs/issues to [the AP Discord thread](https://discord.com/channels/731205301247803413/1533318615057567885) in "future-game-design". 
 
 ## General Structure
 
@@ -56,51 +56,18 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
 
 ## Known Bugs and Issues
 
-- Warp Star stations may not open upon beating the boss, and not all unlocked worlds may be acessible. Resetting the game should fix this
-- If you are disconnected from the server and beat a boss, that location check will be permanently LOST since bosses cannot be refought on the same file
 - Getting grabbed by certain midbosses with invincibility active may still hurt Kirby (and can make the invincibility theme play until the next room)
 - The interaction of savestates and the various client-dependent game interactions is completely unknown -- use save states at your own risk!
 
-## Latest Updates
+## Latest Updates (See Releases for Full Changelog)
 
-- 8/3/26: Added "HP Bank" feature modeled off the Mega Man 1/2/3 AP that stores HP items if you don't immediately them, and gives HP 1 segment as a time as you take damage
-- 8/5/26: Added Detection for boss defeat via the Kirby Dance BGM. Attempted to add SFX for the Star Rod piece.
-- 8/10/26: Added Vitality and Copy Ability unlocks (currently 1 vitality, and just Sword). Fixed SFX for all awarded items
-- 8/13/26: Added (untested) big switch detection logic. Attempted to fix EVERY FRAME door SFX issue. Added (soon to be useless) coordinate logic for in-level pickups
-- 8/14/26: Overhauled item detection to use collection flags in RAM rather than coordinates. Added (untested) Arena clear detection
-- 8/20/26: Add full-game locations, items and logic rules
-- 8/26/26: Overhaul Door locking system to go in-game instead of client side. Debug Big Switch Checks
-- 8/28/26: Fix client sync counter bug. Update guide in apworld docs. Other misc bug-squashing.
-- 9/3/26: Overhaul Ability locking system to go in-game, fixing issues concerning copy abilities and the mix roulette. Fixed door lock edge case
-- 9/4/26: Add functional options to client and world
-- 9/13/26: Add Tests. Fix logic bug with Star Rod progression
-- 9/15/26: Polishing and bug squashing. Fixes attempted for following bugs:
-    - Overworld door locking does not lock doors in levels (re: 4-6 stake room, 6-2 rocky room)
-    - Item awarding no longer attempted in Nightmare Orb phase (healing is impossible) 
-    - Big Switch state partly moved game side to ensure Overworld is always open. Client sets "all switches pressed" while game always reads "no switches pressed" in Big Switch rooms. 
-    - Fixed 5-1 location ID's
-    - Expanded 5-5 Big Switch Logic. 
-- 9/17/26: Further Polishing. Update Docs with implementation details. Added All essential Tests and tightened Rules.py logic. Fixes Attempted for following bugs
-    - Add missing Pep Drink in 4-3 to locations
-    - Client "sync counter" goes to length of items received if internal counter somehow greater than network instead of resetting
-- 9/18/26: Polishing. Add Vitality Count Tests. Attempted following bug fixes
-    - 6-6 UFO's trigger the "level clear" check due to detection oversights
-    - Location checks now allow multiple ID's to be sent in one tick of the client instead of assuming only 1 (checks would be eaten)
-    - Healing should NOT be attempted in the Nightmare Orb phase (again)
-    - Healing SHOULD be allowed in Arenas
-    - Healing should NOT be attempted in the event of a pit death (HP = 0)
-- 9/19/26: Bug testing. Attempted following bug fixes
-    - Warp Star stations are all initially barred, then have all 7 worlds unlocked upon reset
-    - Useless healing attempts in the intro to the Nightmare Wizard fight (getting there!)
-- 9/21/26: Final Bug Testing. Following Fixes applied
-    - Warp Star stations will not have all 7 worlds unlocked to start, even after a reset
-    - Added missing spike room 1up in 3-3
-    - Fixed Arena Key logic and added Arena Key test
-- 9/22/26: Final-er Bug Testing. Preparations for release
-    - Update docs to prep for release
-    - Enable automatic patching from patch file and prompt for initial ROM file selection
-    - Fix implementation of copy abilities and side doors initially unlocked options
-    - Fix Arena checks being awarded immediately at the start of the fight
+- 9/25/26: Fixed bugs found in previous release. Removed "beta" and "unstable" language.
+    - Warp Star stations are no longer always boarded up before restart, and have the appropriate destinations unlocked for currently unlocked worlds
+    - Added failsafe for missing boss checks -- on initialization, the client checks in-game values and awards all cleared boss locations, if necessary.
+    - Fixed door lock bug in ASM allowing "locked" OW doors to be entered
+    - Clean up 7-1 Big Switch Rules
+    - Rename various locations to give them more personality
+
 
 ## Credits and Shout-Outs
 

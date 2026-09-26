@@ -172,12 +172,12 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                         'Burning','Tornado'
                 )))
     
-    set_rule(world.get_location("Butter Building 5 - Tomato (After Bonkers 1)"),
+    set_rule(world.get_location("Butter Building 5 - Tomato (Stake Room 1)"),
             lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
-    set_rule(world.get_location("Butter Building 5 - 1up (After Bonkers 2)"),
+    set_rule(world.get_location("Butter Building 5 - 1up (Stake Room 2)"),
             lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
     
-    set_rule(world.get_location("Grape Garden 3 - 1up (Cannon)"),
+    set_rule(world.get_location("Grape Garden 3 - 1up (Cannon Reward)"),
             lambda state, rp=req_pieces_per_boss: can_light_fuse(state,world,rp))
     set_rule(world.get_location("Grape Garden 4 - 1up (Wheel Race)"),
             lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Wheel'))
@@ -305,23 +305,15 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                         lambda state, rp=req_pieces_per_boss: can_use_any_ability(state,world,rp,('Burning','Wheel','Hammer'))
                         or state.has("UFO", world.player)
                 )
-        set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. Most complex logic of any location. 
-                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or (
-                                can_use_ability(state,world,rp,'Burning') and (
-                                        can_use_any_ability(state,world,rp,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol','Fire','Ice','Needle')) #advanced adds fire, ice, needle
-                                )
-                        ))
+        set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. 
+                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or can_use_ability(state,world,rp,'Burning'))
     else:
         set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
                         lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Burning')
                         or state.has("UFO", world.player)
                 )
         set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), 
-                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or (
-                                can_use_ability(state,world,rp,'Burning') and (
-                                        can_use_any_ability(state,world,rp,('Beam','Spark','Burning','Sword','Freeze','Hi-Jump','Parasol'))
-                                )
-                        ))
+                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or can_use_ability(state,world,rp,'Burning'))
 
 
     ##Arenas Logic

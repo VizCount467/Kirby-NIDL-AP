@@ -433,7 +433,7 @@ FreeROM_DoorLock:
     add r0, r0, #0x2
     cmp r0, r3
     beq @@Door_Index_Found ; right side of door, bottom row
-    add r0, r0, #0x2
+    add r0, r0, #0x1
     cmp r0, r3
     beq @@Door_Index_Found ; far right, bottom row
     mov r4, #0xFF

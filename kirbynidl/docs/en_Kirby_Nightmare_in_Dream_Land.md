@@ -37,7 +37,7 @@ Healing items do not take effect directly. Instead, they are added to an "HP Ban
 - Maxim Tomtos are worth N-1 HP, where N is the current Max HP.
 
 Upon beginning a new game session, the HP Bank resets. Previously obtained healing items are not added back in. 
-Finally, due to game limitations, Kirby cannot heal during the Nightmare Orb phase. 
+Finally, due to ~~technical game limitations~~ Nightmare's Dark Power, Kirby cannot heal during the Nightmare Orb phase. 
 
 ### Note on Meta Knight:
 You do NOT need to have Sword unlocked to fight and beat Meta Knight in World 6. By the special rules of this fight, you can always pick up the Sword ability, and if you had no ability initially, you will keep Sword afterwards (Otherwise, you will revert to you original ability, which is Vanilla behavior). This "extra sword" from Meta Knight does NOT unlock Sword, and is NOT factored into logic. 
@@ -46,12 +46,12 @@ You do NOT need to have Sword unlocked to fight and beat Meta Knight in World 6.
 Specifically, the client detects the Goal Event via the "moon explosion" cutscene that plays after defeating Nightmare's second phase. It does NOT trigger immediately after depleting the boss's health bar, so be a little patient at the end!
 
 ### Note on Files: 
-Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items. 
+Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items
 
-### Notes on Offline Play / Missable Locations
+### Notes on Offline Play
 - You must be connected to receive items and send checks. Any checks performed offline will not take effect; there is no snap-back/catch-up procedure for locations.
 - In-level pickup items will not respawn on the same play session. You must restart the game to collect them again. 
-- Since Bosses cannot be refought on the same file, if you beat a boss without being connected to send its location, that location will be permanently LOST on that file. To send the location, you must start a new file and fight that boss again while connected. This is not that difficult due to the open world structure of the game, but still an issue that will be addressed. 
+
 
 
 ## Options
@@ -70,9 +70,9 @@ Starting a new file with collected items will cause all collected items to be aw
 
 - `Advanced Logic`
     Incorporates several difficult, obscure, or unintuitive tricks into item placement logic. Examples include
-        - Using a double star from inhaling two enemies at once to destroy metal blocks
-        - Breaking metal blocks with inconvenient placement using unideal abilities (ie, 6-6 Big Switch with Wheel)
-        - Using various abilities to break blocks through walls or from below in ways would seem impossible (ie, 2-4 laser room with cutter, 7-1 Big Switch with Fire + Burning)
+    - Using a double star from inhaling two enemies at once to destroy metal blocks
+    - Breaking metal blocks with inconvenient placement using unideal abilities (ie, 6-6 Big Switch with Wheel)
+    - Using various abilities to break blocks through walls or from below in ways would seem impossible (ie, 2-4 laser room with cutter)
 
 - `Lock Bonus Doors`:
     Locks all doors to minigames and other side areas (Arenas, Museums, Warp Star Stations) until the correponding key is obtained. Adds Bonus door keys to the item pool

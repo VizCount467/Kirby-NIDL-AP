@@ -31,6 +31,6 @@ By default, opening a patch file will do steps 1-5 below for you automatically. 
 6. The emulator and client will eventually connect to each other. The BizHawk Client window should indicate that it connected and recognized Kirby Nightmare in Dream Land.
 7. To connect the client to the server, enter your room's address and port (e.g. archipelago.gg:38281, localhost:38247) into the top text field of the client and click Connect.
 
-You should now be able to receive and send items. You'll need to do these steps every time you want to reconnect. Kirby Nightmare in Dreamland relies on the AP connection to send and receive items -- you cannot obtain any items without a connection, nor will any locations you check be reflected in the multiworld. Thus, playing without a connection is completely useless, and even **UNSAFE** (i.e. boss locations can be permanently lost on that file) (for now). If this happens, you must run back through all the bosses to the check you missed on a new file. 
+You should now be able to receive and send items. You'll need to do these steps every time you want to reconnect. Kirby Nightmare in Dreamland relies on the AP connection to send and receive items -- you cannot obtain any items without a connection, nor will any locations you check be reflected in the multiworld. Thus, playing without a connection is completely useless, and may cause certain systems to break. 
 
 

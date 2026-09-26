@@ -47,11 +47,11 @@ LOCATION_TABLE_READABLE = {
     "Ice Cream Island 3 - Level Clear" : 230,
     "Ice Cream Island 3 - Tomato (UFO Room)" : 233,
     "Ice Cream Island 3 - 1up (Cave Tunnel)" : 231,
-    "Ice Cream Island 3 - Pep Drink (Underwater)" : 232,
+    "Ice Cream Island 3 - Pep Drink (Tide Pool)" : 232,
 
     "Ice Cream Island 4 - Level Clear" : 240,
     "Ice Cream Island 4 - 1up (Gip Room)" : 242,
-    "Ice Cream Island 4 - Tomato (Block cage)" : 241,
+    "Ice Cream Island 4 - Tomato (Block Cage)" : 241,
     "Ice Cream Island 4 - Pep Drink (Laser Room 1)" : 244, 
     "Ice Cream Island 4 - Pep Drink (Laser Room 2)" : 246,
     "Ice Cream Island 4 - Pep Drink (Laser Room 3)" : 245,
@@ -64,7 +64,7 @@ LOCATION_TABLE_READABLE = {
     "Ice Cream Island 5 - 1up (Metal Blocks 1)" : 252,
     "Ice Cream Island 5 - 1up (Metal Blocks 2)" : 253,
     "Ice Cream Island 5 - 1up (Gordo Guarded)" : 254,
-    "Ice Cream Island 5 - Pep Drink (Starman Room)" : 255,
+    "Ice Cream Island 5 - Pep Drink (Checkerboard Room)" : 255,
     "Ice Cream Island 5 - Tomato (Poppy Bros. Jr.)" : 256,
 
     "Ice Cream Island - Arena Clear" : 289,
@@ -93,8 +93,8 @@ LOCATION_TABLE_READABLE = {
     "Butter Building 5 - Level Clear" : 350,
     "Butter Building 5 - Candy (First Room)" : 351,
     "Butter Building 5 - Pep Drink (Exterior Wall)" : 352,
-    "Butter Building 5 - Tomato (After Bonkers 1)" : 353,
-    "Butter Building 5 - 1up (After Bonkers 2)" : 354,
+    "Butter Building 5 - Tomato (Stake Room 1)" : 353,
+    "Butter Building 5 - 1up (Stake Room 2)" : 354,
 
     "Butter Building 6 - Level Clear" : 360,
     "Butter Building 6 - Pep Drink (Laser Room)" : 361,
@@ -119,9 +119,9 @@ LOCATION_TABLE_READABLE = {
     "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 421,
 
     "Grape Garden 3 - Level Clear" : 430,
-    "Grape Garden 3 - Pep Drink (Blimp Interior)": 431,
-    "Grape Garden 3 - 1up (Cannon)" : 432,
-    "Grape Garden 3 - Tomato (Kabu Room)" : 433,
+    "Grape Garden 3 - Pep Drink (Engine Room)": 431,
+    "Grape Garden 3 - 1up (Cannon Reward)" : 432,
+    "Grape Garden 3 - Tomato (Exploding Kabu Room)" : 433,
     "Grape Garden 3 - Big Switch" : 439,
 
     "Grape Garden 4 - Level Clear" : 440,
@@ -190,7 +190,7 @@ LOCATION_TABLE_READABLE = {
 
     "Orange Ocean 2 - Level Clear" : 620,
     "Orange Ocean 2 - Pep Drink (Bomb Block)" : 621,
-    "Orange Ocean 2 - 1up (Secret Rocky Room)" : 624,
+    "Orange Ocean 2 - 1up (Hidden Rocky Room)" : 624,
     "Orange Ocean 2 - Tomato (Poppy Bros. Jr.)" : 622,
     "Orange Ocean 2 - Big Switch" : 629,
 
@@ -219,7 +219,7 @@ LOCATION_TABLE_READABLE = {
     "Orange Ocean 5 - Big Switch" : 659,
 
     "Orange Ocean 6 - Level Clear" : 660,
-    #Technically, the ID's here are 9, 10 and 11 because of the UFO's. The client will have a carve-out for this special case
+    #Technically, the ID's here are 9, 10 and 11 because of the 8 UFO's. The client has a carve-out for this special case
     "Orange Ocean 6 - Tomato (UFO Room)" : 661, 
     "Orange Ocean 6 - Candy (After Poppy Bros. Sr.)" : 663,
     "Orange Ocean 6 - 1up (Upper Path Metal Blocks)" : 662,
