@@ -69,10 +69,11 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Clean up 7-1 Big Switch Rules
     - Rename various locations to give them more personality
 - 10/7/26: 
-    - Added Death Link, 
+    - Added Death Link!
     - Added OW door color manipulation to indicate completion
     - Added HP bank gain if you collect a Tomato or Pep Drink a second time (after a reset) to aid replaying levels
     - Added the "kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
+    - Fixed the starting vitality option not working and defaulting to 3
 
 
 ## Credits and Shout-Outs
