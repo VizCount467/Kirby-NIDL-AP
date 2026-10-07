@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from Options import Choice, Range, Toggle, DefaultOnToggle,  OptionSet, PerGameCommonOptions
+from Options import Choice, Range, Toggle, DefaultOnToggle,  OptionSet, PerGameCommonOptions, DeathLink
 
 ##Not to be implemented until much later, if ever, because it would hugely complicate ability access logic
 # class LockLevelDoors(Toggle):
@@ -39,7 +39,7 @@ class LockCopyAbilities(DefaultOnToggle):
     """Prevents Kirby from using copy abilities until unlocked. Adds copy ability unlocks to the item pool"""
     display_name = "Lock Copy Abilities"
 
-## Postponing this as an option, since it would require changing the ROM patch procedure to leave the heling item routine alone
+## Postponing this as an option, since it would require changing the ROM patch procedure to leave the healing item routine alone
 # class RandomizePickups(Toggle):
 #     """Adds all Pep Drinks, Maxim Tomatoes, and 1ups in normal levels to the location pool"""
 #     display_name = "Randomize Pickups"
@@ -60,6 +60,7 @@ class MaxVitality(Range):
 
 @dataclass
 class KirbyNIDLOptions(PerGameCommonOptions):
+    death_link: DeathLink
     pieces_in_pool: NumberStarRod
     req_pieces_num: ReqNumStarRod
     req_pieces_prc: ReqPrcStarRod

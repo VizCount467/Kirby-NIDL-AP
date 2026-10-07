@@ -48,13 +48,12 @@ Specifically, the client detects the Goal Event via the "moon explosion" cutscen
 ### Note on Files: 
 Starting a new file with collected items will cause all collected items to be awarded to the new file as if they were newly sent, including HP items
 
-### Notes on Offline Play
-- You must be connected to receive items and send checks. Any checks performed offline will not take effect; there is no snap-back/catch-up procedure for locations.
-- In-level pickup items will not respawn on the same play session. You must restart the game to collect them again. 
-
 
 
 ## Options
+
+- `Death Link`
+    You probably know what this is. If this is enabled and you die, everyone else with the setting enabled also dies. The converse is true as well -- if they die, you die! 
 
 - `Number of Star Rod Pieces`:
     Set the number of Star Rod Pieces in the item pool (minimum 7)
@@ -62,6 +61,8 @@ Starting a new file with collected items will cause all collected items to be aw
 - `Number of Required Star Rod Pieces`
     Set the raw number of Star Rod Pieces to unlock the World 7 boss door and complete the game.
     The cumulative requirement for every other world's boss door will be this number divided by 7, rounded down.
+    ie, if there are 30 required pieces, W1 Boss requires 4 pieces (30/7, rounded down), W2 Boss 8 pieces, W3 12...
+    Finally, the W7 boss will still require all 30 pieces
 
 - `Percent of Required Star Rod Pieces`
     Set the percent of Star Rod Pieces in the item pool required to unlock the World 7 boss door and complete the game

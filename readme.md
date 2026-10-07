@@ -36,9 +36,10 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Variable starting health and number of health upgrades
     - Start with all Copy Abilities and/or bonus doors unlocked, if desired
     - Toggle obscure/difficult tricks in location logic
+    - Death Link!
 
 ## Features Planned To be Implemented
-- Death link Support
+- Option to access worlds early if that world's warp star station is unlocked
 
 ## Speculative Features
 
@@ -67,6 +68,11 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Fixed door lock bug in ASM allowing "locked" OW doors to be entered
     - Clean up 7-1 Big Switch Rules
     - Rename various locations to give them more personality
+- 10/7/26: 
+    - Added Death Link, 
+    - Added OW door color manipulation to indicate completion
+    - Added HP bank gain if you collect a Tomato or Pep Drink a second time (after a reset) to aid replaying levels
+    - Added the "kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
 
 
 ## Credits and Shout-Outs

@@ -24,6 +24,7 @@
 .definelabel Max_Health_EW, 0x02005580
 .definelabel Kirby_Health_EW, 0x02005588
 .definelabel LifeCounter_EW, 0x02007D48
+.definelabel KirbyActionableFlag, 0x03001F34
 
 .definelabel Pos_Update_Hook_Start, 0x08026266
 .definelabel Kirby_Xpos_IW, 0x030023CC
@@ -137,6 +138,12 @@ FreeROM_ClientCheck:
     strb r0, [r2]
 
 @@Continue_Client_Check_1:
+    ;Check "kirby actionable" flag before anything else
+    ldr r2, =KirbyActionableFlag
+    ldrb r0,[r2]
+    cmp r0, #0x0 ;0 = normal state
+    bne @@MakeUp_and_Resume_OGFunction
+
     ;Check control byte for what item it is, then the Screen Modifier to see if now is a good time to award the item
     ;Note that "on a warp star" is screen mod 11, so no issues with trying to heal there
     ldr r2, =ScreenModifier
@@ -189,7 +196,7 @@ FreeROM_ClientCheck:
 @@Finally_Call_Heal:
     mov r0, #0x1
     ;Assign custom code location to the lr to get correct jumpback (quasi-bl). Though, I'm not entirely sure this callback ever gets called back
-    ldr r1, =@@MakeUp_and_Resume_OGFunction+1 ;Keep healing if the counter isn't 0 (assuming this is ever even called back)
+    ldr r1, =@@Reset_Actionable_Flag+1 ;Return to this function's epilogue after calling the healing function
     mov lr, r1
     ldr r3, =Heal_Tomato_Start+1 
     bx r3
@@ -283,6 +290,11 @@ FreeROM_ClientCheck:
     ldr r3, =Make_Invincible_Start+1 
     bx r3 
     b @@MakeUp_and_Resume_OGFunction
+
+@@Reset_Actionable_Flag:
+    ldr r0, =KirbyActionableFlag ;Write 0 (normal state) to the kirby actionable variable because healing was messing it up?
+    mov r1, #0x0
+    strb r1, [r0] ;normal function epilogue follows this
 
 @@MakeUp_and_Resume_OGFunction:
     pop {r0, r1} ;Get these back from the stack storage earlier

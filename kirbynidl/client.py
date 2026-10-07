@@ -5,6 +5,7 @@ from NetUtils import ClientStatus
 import worlds._bizhawk as bizhawk
 #from .Options import KNIDLOptions
 from worlds._bizhawk.client import BizHawkClient
+import Utils
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -20,7 +21,7 @@ logger.setLevel(logging.INFO) #Set to CRITICAL for release
 ###DATA
 ##APWORLD STUFF
 KNIDL_BASE_ID = 2742740
-KIRBY_BASE_HP = 3
+
 
 #Table (list) of what index in each world's bit array each door type corresponds to
 DOOR_NAME_TO_BIT_MAP = [
@@ -92,11 +93,68 @@ MOUTH_ADR = 0x217B
 BOSS_HP_ADR = 0x3A08
 LEVELS_CLEARED_ADR = 0x2384
 WORLDS_CLEARED_IW = 0x23E0
+KIRBY_ACTIONABLE = 0x1F34
+KIRBY_HP_IW = 0x2808
 #CUSTOM IWRAM (the "control panel")
 DOOR_LOCK_ADR = 0x78A0
 ITEM_AWARD_ADR = 0x78A8
 DOOR_LOCK_BITARR = 0x78B0 #+2,4,6 for each world's doors, until W7 at BC
 ABILITY_LOCK_BITARR = 0x78C0
+
+###Some Helper Functions and classes
+
+class DeathLinkCtx: #stolen from WL4 apworld
+    enabled: bool = False
+    update_pending: bool = False
+    pending: bool = False
+    sent_this_death: bool = False
+
+def cmd_toggle_deathlink(self):
+    """Toggle death link from client. Overrides default setting. Works right out of the box like this?"""
+
+    client_handler = self.ctx.client_handler
+    client_handler.death_link.client_override = True
+    client_handler.death_link.enabled = not client_handler.death_link.enabled
+    logger.info('Death Link Toggle Function was called')
+    Utils.async_start(
+        self.ctx.update_death_link(client_handler.death_link.enabled),
+        name="Update Death Link"
+    )
+
+#List of custom commands allowed by the client
+knidl_client_commands = {
+    "deathlink": cmd_toggle_deathlink,
+    # "kill": cmd_receive_death,
+}
+
+#From the list of all currently checked location ids (+ the location just collected), derive the array of bytes that should be written to the level clear flags
+def get_door_color_bytes(missing_location_ids, last_loc_id=None, last_loc_ids = []):
+    #derive initial array of all "02" for "complete"
+    color_array = []
+    for w in range(7):
+        color_array.append([])
+        level_count = LEVELS_PER_WORLD_INDEX[w]
+        for _ in range(level_count):
+            color_array[w].append(2)
+    #Remove the last location we checked (if there was one) from the set of missing ID's
+    if last_loc_id:
+        all_missing_location_ids = copy.copy(missing_location_ids)
+        all_missing_location_ids.discard(last_loc_id)
+    elif last_loc_ids:
+        all_missing_location_ids = copy.copy(missing_location_ids)
+        all_missing_location_ids.difference_update(last_loc_ids)
+    else:
+        all_missing_location_ids = missing_location_ids
+    #go through all missing locations, derive world and level, and set the corresponding byte to "01" for "not complete"
+    for m in all_missing_location_ids:
+        #Exploit the fact the X## is the world, #X# is the level of the location id
+        m_readable = m - KNIDL_BASE_ID
+        world = m_readable // 100
+        level = (m_readable // 10) % 10 #int divide by ten to "shift right 1", mod 10 to extract last digit
+        if world <= 7 and level <= 6:
+            color_array[world-1][level-1] = 1
+    return color_array
+
 
 
 class KirbyNIDLClient(BizHawkClient):
@@ -106,6 +164,8 @@ class KirbyNIDLClient(BizHawkClient):
 
     def __init__(self):
         super().__init__()
+
+        self.deathLink = DeathLinkCtx()
 
         #Obtain a list of every door that can possibly be locked at startup (then remove them as items come in)
         self.locked_door_names = []
@@ -140,8 +200,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.level_status_updated = True
         self.switchexists_bitarr = 0
         self.file_number = 0
-        self.nightmare_start_time = 0
-        self.NIGHTMARE_TIME_DELAY = 8 #Approximately 8 seconds before nightmare fight starts
+        self.detected_death = False
     
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -168,11 +227,41 @@ class KirbyNIDLClient(BizHawkClient):
                 ctx.game = self.game
                 ctx.items_handling = 0b011 # gets items from other worlds and OWN world
                 ctx.want_slot_data = True
+                ctx.command_processor.commands.update(knidl_client_commands) #Allows client to accept custom commands (?)
                 return True 
             else:
                 return False
         except bizhawk.RequestFailedError:
             return False  # Not able to get a response, say no for now
+
+    def on_package(self, ctx, cmd: str, args: dict): #A sort of handler for packets. TY WL4 again. 
+        logger.info('On package function was called')
+        if cmd == 'Connected':
+            if args["slot_data"].get("death_link"):
+                logger.info('Death Link found in slot data. Death link enabled')
+                self.deathLink.enabled = True
+                self.deathLink.update_pending = True
+        if cmd == 'Bounced':
+            tags = args.get("tags", [])
+            try:
+                logger.info(f'Bounced packet detected. Tags are {tags}. Self check: {args["data"]["source"]} == {ctx.auth}')
+                if "DeathLink" in tags and args["data"]["source"] != ctx.auth:
+                    logger.info('Death Link incoming, set death pending to True')
+                    self.deathLink.pending = True
+            except KeyError:
+                logger.info('No Data in packet. Pass')
+                pass
+
+    ### Self Helper Function
+    def get_color_flag_writes(self, ctx: "BizHawkClientContext", last_loc_id=None, last_loc_ids=[]):
+        color_flag_writes = []
+        color_array = get_door_color_bytes(ctx.missing_locations, last_loc_id, last_loc_ids)
+        for i in range(self.worlds_cleared+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
+            level_count = LEVELS_PER_WORLD_INDEX[i]
+            for offset in range(level_count):
+                color_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [color_array[i][offset]], "IWRAM"))
+                color_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [color_array[i][offset]], "EWRAM"))
+        return color_flag_writes
     
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         try:
@@ -208,6 +297,16 @@ class KirbyNIDLClient(BizHawkClient):
                 self.req_pieces_per_boss = int(req_pieces/7)
                 self.req_pieces = req_pieces
 
+            #If death link Option is true, enable death link
+            if ctx.slot_data.get('death_link') == True:
+                self.deathLink.enabled = True
+                self.deathLink.update_pending = True
+
+            #If a death link UPDATE is pending, handle the update
+            if self.deathLink.update_pending:
+                await ctx.update_death_link(self.deathLink.enabled)
+                self.deathLink.update_pending = False
+
             # Don't do anything if the game is not in a specific state (list all states we will actually use here)
             #We only care about 5 (OW lobby), 7 (World Intro Cutscene), 8 (Normal Level or Boss), 9 (Big Switch cutscene), A (Goal Game, B (Final Cutscene)
             # and also 12 (Museum) and 13 (Arena) because kirby can gain abilities in these scenes
@@ -228,14 +327,9 @@ class KirbyNIDLClient(BizHawkClient):
                 self.file_number = int.from_bytes(file_numberb)
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
                 #set the level clear flags for levels in all CLEARED worlds to 02
-                logger.info(ctx.checked_locations)
+                logger.debug(ctx.checked_locations)
                 logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared count is {self.worlds_cleared}')
-                clear_flag_writes = []
-                for i in range(self.worlds_cleared+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
-                    level_count = LEVELS_PER_WORLD_INDEX[i]
-                    for offset in range(level_count):
-                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
-                        clear_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [0x2], "EWRAM"))
+                clear_flag_writes = self.get_color_flag_writes(ctx)
                 #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
                 n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.worlds_cleared+1)])
                 self.switchexists_bitarr = (1 << n_switches) - 1
@@ -289,13 +383,7 @@ class KirbyNIDLClient(BizHawkClient):
                 ])
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
                 logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared is {self.worlds_cleared}')
-                #Individual levels to 0x02
-                clear_flag_writes = []
-                for i in range(self.worlds_cleared+1):
-                    level_count = LEVELS_PER_WORLD_INDEX[i]
-                    for offset in range(level_count):
-                        clear_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [0x2], "IWRAM"))
-                        clear_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [0x2], "EWRAM"))
+                clear_flag_writes = self.get_color_flag_writes(ctx)
                 #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
                 n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.worlds_cleared+1)])
                 self.switchexists_bitarr = (1 << n_switches) - 1 
@@ -372,7 +460,7 @@ class KirbyNIDLClient(BizHawkClient):
 
                 #Set kirby's max hp based off the number of vitality items
                 extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
-                new_kirby_max_hp = KIRBY_BASE_HP + extra_hp
+                new_kirby_max_hp = ctx.slot_data.get("starting_vitality",3) + extra_hp
                 if new_kirby_max_hp != self.kirby_max_hp:
                     self.kirby_max_hp = new_kirby_max_hp
                     logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} (vitality recalculation)")
@@ -413,7 +501,7 @@ class KirbyNIDLClient(BizHawkClient):
                             door_bits.append(door_bitarr_index)
                     door_bitarr = sum(1 << b for b in door_bits) #compile the bit indexes in a single bit array number
                     assert door_bitarr <= 0xFFFF
-                    door_bitarr_list = [door_bitarr & 0xFF, door_bitarr >> 8] #split the bit array number into a list of two bit numbers, the bigger one second (little-endian)
+                    door_bitarr_list = [door_bitarr & 0xFF, door_bitarr >> 8] #split the bit array number into a list of two byte numbers, the bigger one second (little-endian)
                     locked_door_writes.append((DOOR_LOCK_BITARR+2*i, door_bitarr_list, 'IWRAM')) #Write the bit array number to the control panel with correct offset (2 bytes per world)
                 #logger.debug(locked_door_writes)
 
@@ -434,19 +522,19 @@ class KirbyNIDLClient(BizHawkClient):
                 ability_lock_writes = [(ABILITY_LOCK_BITARR, ability_bitarr_list, 'IWRAM')]
 
                 #Set the sync counter now that any needed items have been awarded
-                #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default)
+                #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default) (currently it's 201)
                 #Also, write the correct byte string to the locked door bit array and ability lock array
                 sync_writes = locked_door_writes + ability_lock_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
-                #sync_writes = [(sync_adr, [self.sync_counter], "EWRAM")]
                 logger.info(f'attempting to write new sync counter {self.sync_counter}, and locked door bit array')
                 logger.debug(sync_writes)
                 await bizhawk.write(ctx.bizhawk_ctx, sync_writes
                 )
+                #NOTE: The sync counter can be written whenever, but will only be actually saved by Bizhawk when the game itself saves. This is out of the client's control
+                #So, if a player connects, receives items, then leaves without the game saving (ie, on level complete), the sync counter will not update and the items will be received again
                 self.init_startup = False
 
-            #Handle the in-game effects of all items (mainly playing SFX)
-            #May need to put a delay timer on this
-            if len(self.item_queue) != 0:
+            #Handle the in-game effects of all items (mainly playing SFX). don't do anything if a death is pending
+            if len(self.item_queue) != 0 and self.deathLink.pending == False:
                 #check if we're free to award the item
                 (item_award_panelb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (ITEM_AWARD_ADR, 1, "IWRAM"),
@@ -471,7 +559,7 @@ class KirbyNIDLClient(BizHawkClient):
                         item_award_id = 4
                     elif current_item == 12: #Tomato
                         #calc how many segments to add to the HP bank
-                        self.hp_bank += self.kirby_max_hp - 1 #TODO: calc this from vitality + vitality pieces when implemented
+                        self.hp_bank += self.kirby_max_hp - 1 
                         logger.info(f'Added {self.kirby_max_hp - 1} HP to Bank')
                         item_award_id = 2
                     elif current_item == 11: #Pep Drink
@@ -499,31 +587,63 @@ class KirbyNIDLClient(BizHawkClient):
                         self.item_queue = self.item_queue[1:]
 
             #If there's hp in the hp bank and Kirby has less than full health AND enough time has expired so that we don't overheal kirby, award a health segment
-            #Also don't heal if he's at 0 hp (ie, pit death)
-            if self.hp_bank > 0 and screen_mod in (0x8, 0x13):
-                (kirby_hpb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
+            #Also don't heal if he's at 0 hp (ie, pit death) or if a deathLink is pending, or during the nightmare orb phase
+            if self.hp_bank > 0 and screen_mod in (0x8, 0x13) and self.deathLink.pending == False:
+                (kirby_hpb, kirby_actionableb, world_numb, bgm_idb) = await bizhawk.read(ctx.bizhawk_ctx, [
                     (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
+                    (KIRBY_ACTIONABLE, 1, "IWRAM"),
                     (WORLD_MOD_ADR, 1, "IWRAM"),
-                    (BGM_ID_ADR, 1, "IWRAM"),
-                    ##(BOSS_HP_ADR, 1, 'IWRAM')       
+                    (BGM_ID_ADR, 1, "IWRAM") 
                 ])
                 kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
-                world_num = int.from_bytes(world_numb) + 1
+                kirby_actionable = int.from_bytes(kirby_actionableb)
+                world_num = int.from_bytes(world_numb) + 1 #FoD = W8
                 bgm_id = int.from_bytes(bgm_idb)
+                nightmare_filter = world_num != 8 or (world_num == 8 and bgm_id == 0x22) #Not in FoD or in FoD with Wizard phase active
                 now = time.time()
-                #consider experimenting with kirby actionable flag to check when it's okay to heal in Nightmare Wizard?
-                if not self.nightmare_start_time and (world_num == 8 and bgm_id == 0x22):
-                    self.nightmare_start_time = now 
-                if (world_num != 8 or (world_num == 8 and bgm_id == 0x22 and now - self.NIGHTMARE_TIME_DELAY > self.nightmare_start_time)) and (
-                    kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY): 
+                if kirby_actionable == 0 and nightmare_filter and kirby_hp < self.kirby_max_hp and kirby_hp > 0 and now - self.hp_trickle_timestamp > self.HEAL_TIME_DELAY: 
                     logger.info(f'Detected kirby HP is {kirby_hp} with HP bank at {self.hp_bank}. Awarding 1 HP segment')
                     await bizhawk.write(ctx.bizhawk_ctx,
                             [(ITEM_AWARD_ADR, [1], "IWRAM")]
                     )
                     self.hp_bank -= 1
                     self.hp_trickle_timestamp = now
-                    
-      
+
+            #If a death link is pending, kill Kirby at first available opportunity 
+            if self.deathLink.enabled and self.deathLink.pending and screen_mod in (0x8, 0x13):
+                logger.info('Death Link: Checking to see if Kirby is killable now')
+                (kirby_hpb, kirby_actionableb) = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
+                    (KIRBY_ACTIONABLE, 1, "IWRAM"), 
+                ])
+                kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
+                kirby_actionable = int.from_bytes(kirby_actionableb)
+                if kirby_hp > 0 and kirby_actionable == 0: #Only attempt to kill if Kirby is in a normal gameplay state
+                    logger.info('Death Link: Attempting to kill Kirby because of Death Link')
+                    await bizhawk.write(ctx.bizhawk_ctx,
+                            [(KIRBY_HP_IW, [0], "IWRAM")]
+                    )
+                    self.deathLink.sent_this_death = True #Next kirby death will be a Death Link death. 
+
+            #If death link is enabled, look to see if Kirby is Dead
+            if self.deathLink.enabled and screen_mod in (0x8, 0x13):
+                kirby_hpb, = await bizhawk.read(ctx.bizhawk_ctx, [
+                    (KIRBY_HP_EW_ADR, 1, "EWRAM"), 
+                ])
+                kirby_hp = int(int.from_bytes(kirby_hpb) / 8)
+                if kirby_hp == 0 and not self.detected_death:
+                    self.deathLink.pending = False #Confirmed that we killed kirby via death link, death no longer pending
+                    self.detected_death = True #Flag to confirm this is a new death and not the same death detected multiple times
+                    logger.info('Death Link: Detected Kirby Death')
+                    if self.deathLink.sent_this_death == False: #The death was not a death link death, send a signal
+                        logger.info('Death Link: Death was not from Death Link, Sending Death Link death')
+                        self.deathLink.sent_this_death = True
+                        await ctx.send_death()
+                    else: #The death was a Death Link death, reset the "sent this death" flag
+                        logger.info('Death Link: Death was from Death Link, resetting sent death flag')
+                        self.deathLink.sent_this_death = False
+                elif kirby_hp > 0:
+                    self.detected_death = False
             
             #If a goal game is detected, send the level clear check. 
             if screen_mod == 0xA and not self.detected_goal_game:
@@ -543,12 +663,17 @@ class KirbyNIDLClient(BizHawkClient):
                         "cmd": "LocationChecks",
                         "locations": [level_clear_loc_id]
                     }])
+                #Also update the door colors
+                color_flag_writes = self.get_color_flag_writes(ctx,last_loc_id=level_clear_loc_id)
+                await bizhawk.write(
+                    ctx.bizhawk_ctx, color_flag_writes
+                )
+
             #Reset various "send check only once" switches once we're out of their screen mod context
             if not screen_mod == 0xA:
                 self.detected_goal_game = False
             if not screen_mod == 0x8:
                 self.sent_boss_check = False
-                self.nightmare_start_time = 0 #if we exit the Nightmare fight for some reason in the middle of it, reset
             if not screen_mod == 0x9:
                 self.sent_bigswitch_check = False
             if not screen_mod == 0x13:
@@ -612,15 +737,33 @@ class KirbyNIDLClient(BizHawkClient):
                     try:
                         loc_name = LOCATION_ID_TO_NAME[str(loc_id)]
                     except KeyError:
-                        logger.warning(f'Attempted to find location name for nonexistent id: {loc_id_readable} (readable). Pass')
+                        logger.warning(f'Attempted to find location name for nonexistent id: {loc_id_readable} (readable). Pass') #This will happen for UFO "locations"
                     if loc_name: 
                         logger.info(f'Attempting to send location {loc_name}, id {LOCATION_NAME_TO_ID[loc_name]}')
                         loc_ids.append(LOCATION_NAME_TO_ID[loc_name])
+                #For every location id, check to see if it was already collected. If it was (2nd time collecting after a reset), award its "vanilla" in-game item
+                for l in loc_ids:
+                    if l in ctx.checked_locations:
+                        loc_name = LOCATION_ID_TO_NAME[str(l)]
+                        logger.info(f'Already found location {loc_name}, awarding in-game item')
+                        if 'Pep Drink' in loc_name:
+                            self.item_queue.append(11)
+                        elif 'Tomato' in loc_name:
+                            self.item_queue.append(12)
+                        elif '1up' in loc_name:
+                            self.item_queue.append(13)
+                        elif 'Candy' in loc_name:
+                            self.item_queue.append(14) 
                 if loc_ids:
                     await ctx.send_msgs([{
                         "cmd": "LocationChecks",
                         "locations": loc_ids
                     }])
+                    #Also update the door colors
+                    color_flag_writes = self.get_color_flag_writes(ctx,last_loc_ids=loc_ids)
+                    await bizhawk.write(
+                        ctx.bizhawk_ctx, color_flag_writes
+                    )
 
 
                 ##Boss Checks -- look for the Kirby Dance BGM ID
@@ -660,6 +803,11 @@ class KirbyNIDLClient(BizHawkClient):
                     "cmd": "LocationChecks",
                     "locations": [loc_id]
                 }])
+                #Also update the door colors
+                color_flag_writes = self.get_color_flag_writes(ctx,last_loc_id=loc_id)
+                await bizhawk.write(
+                    ctx.bizhawk_ctx, color_flag_writes
+                )
                 self.sent_bigswitch_check = True
 
             #Arena Checks -- look for Boss HP going to 0
