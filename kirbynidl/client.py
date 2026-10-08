@@ -16,7 +16,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO) #Set to CRITICAL for release
+logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
 
 ###DATA
 ##APWORLD STUFF
@@ -188,7 +188,7 @@ class KirbyNIDLClient(BizHawkClient):
         self.current_world = -1 #indexed to 0, Vegetable Valley = 0
         self.current_level = -1 #also indexed to 0
         self.current_pickup_bitarr = 0
-        self.current_pickup_flag_adr = 0x7BF0
+        self.current_pickup_flag_adr = 0
         self.sent_boss_check = False
         self.sent_bigswitch_check = False
         self.sent_victory_check = False
@@ -235,7 +235,6 @@ class KirbyNIDLClient(BizHawkClient):
             return False  # Not able to get a response, say no for now
 
     def on_package(self, ctx, cmd: str, args: dict): #A sort of handler for packets. TY WL4 again. 
-        logger.info('On package function was called')
         if cmd == 'Connected':
             if args["slot_data"].get("death_link"):
                 logger.info('Death Link found in slot data. Death link enabled')
@@ -244,12 +243,10 @@ class KirbyNIDLClient(BizHawkClient):
         if cmd == 'Bounced':
             tags = args.get("tags", [])
             try:
-                logger.info(f'Bounced packet detected. Tags are {tags}. Self check: {args["data"]["source"]} == {ctx.auth}')
                 if "DeathLink" in tags and args["data"]["source"] != ctx.auth:
                     logger.info('Death Link incoming, set death pending to True')
                     self.deathLink.pending = True
             except KeyError:
-                logger.info('No Data in packet. Pass')
                 pass
 
     ### Self Helper Function
@@ -279,7 +276,9 @@ class KirbyNIDLClient(BizHawkClient):
             
             #Before anything, reset the init flag if we see the title screen (handles emu refreshes, I think)
             if screen_mod in (0x3,0x4):
+                logger.info('Detected title screen, setting flag to recalculate initial flags')
                 self.init_startup = True
+                self.initial_flags_written = False
                 return 
 
             #Also before anything, set the required star rod pieces now that we have options access
@@ -345,8 +344,8 @@ class KirbyNIDLClient(BizHawkClient):
                 #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
                 ws_bitarr = 2**(self.worlds_cleared+1)-1
                 clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr], 'EWRAM'))
-                logger.info(f'Clear Flags Write List is')
-                logger.info(clear_flag_writes)
+                # logger.info(f'Clear Flags Write List is')
+                # logger.info(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -399,8 +398,8 @@ class KirbyNIDLClient(BizHawkClient):
                 #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
                 ws_bitarr = 2**(self.worlds_cleared+1)-1
                 clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr] , 'EWRAM'))
-                logger.info(f'Clear Flags Write List is')
-                logger.info(clear_flag_writes)
+                # logger.info(f'Clear Flags Write List is')
+                # logger.info(clear_flag_writes)
                 await bizhawk.write(
                     ctx.bizhawk_ctx, clear_flag_writes
                 )
@@ -461,15 +460,20 @@ class KirbyNIDLClient(BizHawkClient):
                 #Set kirby's max hp based off the number of vitality items
                 extra_hp = sum([1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Vitality'])
                 new_kirby_max_hp = ctx.slot_data.get("starting_vitality",3) + extra_hp
-                if new_kirby_max_hp != self.kirby_max_hp:
+                if self.init_startup or new_kirby_max_hp != self.kirby_max_hp:
                     self.kirby_max_hp = new_kirby_max_hp
-                    logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp} (vitality recalculation)")
+                    logger.info(f"Attempting to set Kirby's current Max Health to {self.kirby_max_hp}")
                     hp_val = int(self.kirby_max_hp*8)
                     await bizhawk.write(ctx.bizhawk_ctx, 
                         [(KIRBY_HP_EW_ADR,[hp_val],'EWRAM'),
                         (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
                         ]
                     )
+                #reset the current world and level if we're in the OW
+                if screen_mod == 0x5:
+                    self.current_world = -1
+                    self.current_level = -1
+                    self.current_pickup_flag_adr = 0
 
                 if ctx.slot_data.get('lock_bonus_doors') == False: #If side doors are not locked, refresh the list with just the boss doors
                     self.locked_door_names = []
@@ -560,7 +564,7 @@ class KirbyNIDLClient(BizHawkClient):
                     elif current_item == 12: #Tomato
                         #calc how many segments to add to the HP bank
                         self.hp_bank += self.kirby_max_hp - 1 
-                        logger.info(f'Added {self.kirby_max_hp - 1} HP to Bank')
+                        logger.info(f'Added {self.kirby_max_hp - 1} HP to Bank. Bank at {self.hp_bank}')
                         item_award_id = 2
                     elif current_item == 11: #Pep Drink
                         if self.kirby_max_hp <= 3:

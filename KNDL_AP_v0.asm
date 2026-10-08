@@ -60,6 +60,7 @@
 
 ;All functions below end with bx rN, so set lr before calling them
 .definelabel Heal_Tomato_Start, 0x080B429C ;no input
+.definelabel Heal_Tomato_Thunk_Fun, 0x080B42CE ;modify this function a little to skip a problematic step...
 .definelabel Change_Lives_Start, 0x08009E60 ;r0 = lives to add (1). r1 = player number (0)
 .definelabel Make_Invincible_Start, 0x0803E1B8 ;r0 = player value to alter? (5). r1, r2 uncertain use, but should be 0
 .definelabel Change_Music_Start, 0x08003110 ;r0 = ID of music track (NOT the sound test Number)
@@ -118,6 +119,12 @@
 ;Override the "check levels in world" progression load to always write 06 (all levels are always cleared, check their "switch pressed" flag)
 .org Current_World_Progression_Check
     mov r0, #0x6
+    nop
+    .pool
+
+;Override part of the heal tomato routine that seems to jump execution into the game object context to do nothing instead. Hope nothing bad happens
+.org Heal_Tomato_Thunk_Fun
+    nop
     nop
     .pool
 

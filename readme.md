@@ -39,7 +39,7 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Death Link!
 
 ## Features Planned To be Implemented
-- Option to access worlds early if that world's warp star station is unlocked
+- Option to access Worlds early if that world's warp star station is unlocked (Warp Station Access Early)
 
 ## Speculative Features
 
@@ -74,9 +74,12 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Added HP bank gain if you collect a Tomato or Pep Drink a second time (after a reset) to aid replaying levels
     - Added the "kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
     - Fixed the starting vitality option not working and defaulting to 3
+- 10/8/26:
+    - Fixed bug in hijacked healing routine where Kirby "actionable" flag wasn't being reset
 
 
 ## Credits and Shout-Outs
 
 - Thanks to the RetroAchievements community for getting me started with their RAM map documentation
 - Thanks to aquova and their [KNDL-Rando Repo](https://github.com/Aquova/KNDL-Rando) for additional RAM mapping and initial draft of an ability-locking system. 
+- Thanks to fellow GBA APWorld devs brodieberger ([Mega Man Zero 3](https://github.com/brodieberger/MMZero3Archipelago)) and lilDavid ([Wario Land 4](https://github.com/lilDavid/Archipelago-Wario-Land-4)). Many structures and concepts from their code were studied and utilized in this project. 

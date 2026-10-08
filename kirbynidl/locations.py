@@ -31,7 +31,7 @@ LOCATION_TABLE_READABLE = {
     "Vegetable Valley 4 - Level Clear" : 140,
     "Vegetable Valley 4 - Pep Drink (Platform)" : 141,
     "Vegetable Valley 4 - 1up (Shotzos)" : 142,
-    "Vegetable Valley 4 - Candy (Stump)" : 143,
+    "Vegetable Valley 4 - Candy (Canopy)" : 143,
 
     "Vegetable Valley - Boss (Whispy Woods)" : 199,
 
@@ -115,7 +115,7 @@ LOCATION_TABLE_READABLE = {
     "Grape Garden 1 - Big Switch" : 419,
 
     "Grape Garden 2 - Level Clear" : 420,
-    "Grape Garden 2 - Tomato (Sqishy Room)" : 422,
+    "Grape Garden 2 - Tomato (Squishy Room)" : 422,
     "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 421,
 
     "Grape Garden 3 - Level Clear" : 430,
@@ -215,7 +215,7 @@ LOCATION_TABLE_READABLE = {
 
     "Orange Ocean 5 - Level Clear" : 650,
     "Orange Ocean 5 - Tomato (Cliff Top)" : 651,
-    "Orange Ocean 5 - 1up (Cannon Pit)" : 652,
+    "Orange Ocean 5 - 1up (Cannon Fuse Pit)" : 652,
     "Orange Ocean 5 - Big Switch" : 659,
 
     "Orange Ocean 6 - Level Clear" : 660,
