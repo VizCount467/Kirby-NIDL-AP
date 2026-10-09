@@ -15,7 +15,7 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
 ## Features Currently Implemented
 - Locations
     - All level clears
-    - All world boss clears
+    - All world bosses
     - All in-level consumable items (Pep Drinks, 1ups, Candy, Maxim Tomatoes)
     - All Big Switches
     - All Arenas
@@ -70,12 +70,12 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Rename various locations to give them more personality
 - 10/7/26: 
     - Added Death Link!
-    - Added OW door color manipulation to indicate completion
+    - Added Overworld door color manipulation to indicate completion (flashing red if a level has unchecked locations, yellow for full clear)
     - Added HP bank gain if you collect a Tomato or Pep Drink a second time (after a reset) to aid replaying levels
-    - Added the "kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
+    - Added the "Kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
     - Fixed the starting vitality option not working and defaulting to 3
 - 10/8/26:
-    - Fixed bug in hijacked healing routine where Kirby "actionable" flag wasn't being reset
+    - Fixed bug in hijacked healing routine where the Kirby "actionable" flag wasn't being reset
 
 
 ## Credits and Shout-Outs

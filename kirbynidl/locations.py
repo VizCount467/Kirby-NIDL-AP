@@ -22,8 +22,8 @@ LOCATION_TABLE_READABLE = {
     "Vegetable Valley 1 - Tomato (Waterfall)" : 111,
 
     "Vegetable Valley 2 - Level Clear" : 120,
-    "Vegetable Valley 2 - Tomato (Cave)" : 121,
-    "Vegetable Valley 2 - 1up (Hidden Room)" : 122,
+    "Vegetable Valley 2 - Tomato (Cave Blocks)" : 121,
+    "Vegetable Valley 2 - 1up (Hidden Cave Room)" : 122,
 
     "Vegetable Valley 3 - Level Clear" : 130,
     "Vegetable Valley 3 - Tomato (Hotheads)" : 131,
@@ -46,7 +46,7 @@ LOCATION_TABLE_READABLE = {
 
     "Ice Cream Island 3 - Level Clear" : 230,
     "Ice Cream Island 3 - Tomato (UFO Room)" : 233,
-    "Ice Cream Island 3 - 1up (Cave Tunnel)" : 231,
+    "Ice Cream Island 3 - 1up (Cave Ceiling Passage)" : 231,
     "Ice Cream Island 3 - Pep Drink (Tide Pool)" : 232,
 
     "Ice Cream Island 4 - Level Clear" : 240,
@@ -56,7 +56,7 @@ LOCATION_TABLE_READABLE = {
     "Ice Cream Island 4 - Pep Drink (Laser Room 2)" : 246,
     "Ice Cream Island 4 - Pep Drink (Laser Room 3)" : 245,
     "Ice Cream Island 4 - 1up (Laser Room 4)" : 243,
-    "Ice Cream Island 4 - Pep Drink (Sand Detour)" : 247,
+    "Ice Cream Island 4 - Pep Drink (Sandy Detour)" : 247,
 
     "Ice Cream Island 5 - Level Clear" : 250,
     "Ice Cream Island 5 - Pep Drink (Forest Far Right)" : 251,
@@ -92,12 +92,12 @@ LOCATION_TABLE_READABLE = {
 
     "Butter Building 5 - Level Clear" : 350,
     "Butter Building 5 - Candy (First Room)" : 351,
-    "Butter Building 5 - Pep Drink (Exterior Wall)" : 352,
+    "Butter Building 5 - Pep Drink (Outside Wall)" : 352,
     "Butter Building 5 - Tomato (Stake Room 1)" : 353,
     "Butter Building 5 - 1up (Stake Room 2)" : 354,
 
     "Butter Building 6 - Level Clear" : 360,
-    "Butter Building 6 - Pep Drink (Laser Room)" : 361,
+    "Butter Building 6 - Pep Drink (Bomber Room)" : 361,
     "Butter Building 6 - Tomato (Ladder Room)" : 362,
     "Butter Building 6 - Pep Drink (Defog Room)" : 363,
     "Butter Building 6 - Pep Drink (Before Big Switch)" : 368,
@@ -116,7 +116,7 @@ LOCATION_TABLE_READABLE = {
 
     "Grape Garden 2 - Level Clear" : 420,
     "Grape Garden 2 - Tomato (Squishy Room)" : 422,
-    "Grape Garden 2 - Pep Drink (Spiky Hallway)" : 421,
+    "Grape Garden 2 - Pep Drink (Spike Hallway)" : 421,
 
     "Grape Garden 3 - Level Clear" : 430,
     "Grape Garden 3 - Pep Drink (Engine Room)": 431,
@@ -138,7 +138,7 @@ LOCATION_TABLE_READABLE = {
 
     "Grape Garden 6 - Level Clear" : 460,
     "Grape Garden 6 - Pep Drink (Poolside)" : 461,
-    "Grape Garden 6 - 1up (Stake)" : 462,
+    "Grape Garden 6 - 1up (Stake Room)" : 462,
     "Grape Garden 6 - Pep Drink (Near Goal)" : 463,
     "Grape Garden 6 - Big Switch" : 469,
 
@@ -159,7 +159,7 @@ LOCATION_TABLE_READABLE = {
     "Yogurt Yard 3 - Level Clear" : 530,
     "Yogurt Yard 3 - Tomato (Stake Room Left)" : 533,
     "Yogurt Yard 3 - 1up (Stake Room Right)" : 532,
-    "Yogurt Yard 3 - Pep Drink (Spike Descent)" : 531,
+    "Yogurt Yard 3 - Pep Drink (Spike Shaft)" : 531,
 
     "Yogurt Yard 4 - Level Clear" : 540,
     "Yogurt Yard 4 - 1up (Spike Tunnel)" : 541,
