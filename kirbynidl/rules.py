@@ -103,7 +103,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
              )))
     
     if world.options.advanced_logic:
-        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),
+        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Ceiling Passage)"),
                 lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
                         'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
                 )) 
@@ -129,7 +129,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                 or can_use_ability(state,world,rp,'Cutter')
                 )
     else:
-        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Tunnel)"),
+        set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Ceiling Passage)"),
                 lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
                         'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
                 )) 
@@ -183,7 +183,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
             lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Wheel'))
     set_rule(world.get_location("Grape Garden 5 - 1up (Burning Room Bottom)"),
             lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Burning'))
-    set_rule(world.get_location("Grape Garden 6 - 1up (Stake)"),
+    set_rule(world.get_location("Grape Garden 6 - 1up (Stake Room)"),
             lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
 
     set_rule(world.get_location("Yogurt Yard 3 - Tomato (Stake Room Left)"),
