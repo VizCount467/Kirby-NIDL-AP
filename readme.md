@@ -71,7 +71,7 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
 - 10/7/26: 
     - Added Death Link!
     - Added Overworld door color manipulation to indicate completion (flashing red if a level has unchecked locations, yellow for full clear)
-    - Added HP bank gain if you collect a Tomato or Pep Drink a second time (after a reset) to aid replaying levels
+    - Items have their vanilla effects when collected a second time after a reset, to help with replaying levels. 
     - Added the "Kirby actionable" IWRAM flag to client and ASM actions (will help prevent crashes, probably)
     - Fixed the starting vitality option not working and defaulting to 3
 - 10/8/26:
