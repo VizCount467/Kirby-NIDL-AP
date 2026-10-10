@@ -641,7 +641,6 @@ class KirbyNIDLClient(BizHawkClient):
                     logger.info('Death Link: Detected Kirby Death')
                     if self.deathLink.sent_this_death == False: #The death was not a death link death, send a signal
                         logger.info('Death Link: Death was not from Death Link, Sending Death Link death')
-                        self.deathLink.sent_this_death = True
                         await ctx.send_death()
                     else: #The death was a Death Link death, reset the "sent this death" flag
                         logger.info('Death Link: Death was from Death Link, resetting sent death flag')
