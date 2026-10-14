@@ -31,11 +31,13 @@ def create_and_connect_regions(world: KirbyNIDLWorld) -> None:
     connect_regions(world)
 
 def create_all_regions(world: KirbyNIDLWorld) -> None:
-    
     #Regions are invoked through their constructor
     knidl_regions = [Region(rn, world.player, world.multiworld) for rn in region_names]
     # We now need to add these regions to multiworld.regions so that AP knows about their existence.
     world.multiworld.regions += knidl_regions
+    #Create the special "Warp Station" region if the option for it is on
+    if world.options.warp_station_skips:
+        world.multiworld.regions.append(Region('Warp Star Station', world.player, world.multiworld))
 
 def connect_regions(world: KirbyNIDLWorld) -> None:
     #Connections to region are made by the region.connect helper function
@@ -72,6 +74,17 @@ def connect_regions(world: KirbyNIDLWorld) -> None:
         ##SOLUTION: use the extra "rp" variable in the lambda with the "req pieces" value defined in the loop. Notice how the "rp" var turns color in VS code
         ##This applies to ALL rule functions
         w_current.connect(w_next,world_name + ' Next Door', lambda state, rp=req_pieces_i: state.has("Star Rod Piece", world.player, rp))
+
+    #Connect the special warp station region if option is set
+    if world.options.warp_station_skips:
+        print('Regions.py Warp Station skips called!')
+        ws_region = world.get_region('Warp Star Station')
+        for i, world_name in enumerate(WORLD_NAMES_INDEXED):
+            w_current = world.get_region(world_name)
+            w_current.connect(ws_region, world_name + ' Warp Station Door', lambda state, wn = world_name: state.has(wn+ ' Warp Station Key', world.player))
+            ws_region.connect(w_current, world_name + ' Warp Station Exit Door', lambda state, wn = world_name: state.has(wn + ' Warp Station Key', world.player))
+
+        
     
 
 

@@ -17,6 +17,7 @@ import copy, logging, time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
+client_logger = logging.getLogger('Client') #This logger prints to the AP client window.
 
 ###DATA
 ##APWORLD STUFF
@@ -113,22 +114,62 @@ def cmd_toggle_deathlink(self):
     """Toggle death link from client. Overrides default setting. Works right out of the box like this?"""
 
     client_handler = self.ctx.client_handler
-    client_handler.death_link.client_override = True
-    client_handler.death_link.enabled = not client_handler.death_link.enabled
+    client_handler.deathLink.enabled = not client_handler.deathLink.enabled
     logger.info('Death Link Toggle Function was called')
+    client_logger.info(f'Death Link manually toggled to {client_handler.deathLink.enabled}')
     Utils.async_start(
-        self.ctx.update_death_link(client_handler.death_link.enabled),
+        self.ctx.update_death_link(client_handler.deathLink.enabled),
         name="Update Death Link"
     )
+
+def cmd_show_starrod(self):
+    "List info about the currently collected Star Rod pieces"
+    ctx = self.ctx
+    if not ctx.slot_data:
+        logger.info('No data in client. Try Again?')
+        return
+    if ctx.slot_data.get('req_pieces_prc') == 0:
+        req_pieces = ctx.slot_data.get('req_pieces_num')
+    else:
+        req_pieces = int(ctx.slot_data.get('req_pieces_prc')/100 * ctx.slot_data.get('pieces_in_pool'))
+    #Calculate the required pieces for each boss
+    req_pieces_per_boss = int(req_pieces/7)
+    pool_pieces = ctx.slot_data.get('pieces_in_pool')
+    star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
+    highest_clearable_world = star_rod_pieces_received//req_pieces_per_boss
+    client_logger.info(
+        f'You have {star_rod_pieces_received}/{pool_pieces} Star Rod Pieces\n'
+        f'You need {req_pieces} Pieces to enter the final boss door'
+        )
+    if highest_clearable_world < 6:
+        client_logger.info(
+            f'You need {req_pieces_per_boss - star_rod_pieces_received%req_pieces_per_boss} more Pieces to enter the next boss door in World {highest_clearable_world+1}'
+        )
+    else:
+        client_logger.info('All other boss doors and levels are unlocked')
+
+def cmd_show_abilities(self):
+    "List all unlocked Copy Abilities"
+    ctx = self.ctx
+    unlocked_abilities = []
+    for received_item in ctx.items_received:
+        received_item_id_readable = received_item.item - KNIDL_BASE_ID
+        if received_item_id_readable > 50 and received_item_id_readable < 75:
+            ability_id = received_item_id_readable - 50
+            unlocked_abilities.append(ABILITY_LIST_INDEXED[ability_id])
+    client_logger.info('Listing all unlocked Copy Abilities:')
+    client_logger.info('\n'.join(unlocked_abilities))
 
 #List of custom commands allowed by the client
 knidl_client_commands = {
     "deathlink": cmd_toggle_deathlink,
-    # "kill": cmd_receive_death,
+    'starrod': cmd_show_starrod,
+    'abilities': cmd_show_abilities,
+    # "kill": cmd_receive_death, #Testing ONLY
 }
 
 #From the list of all currently checked location ids (+ the location just collected), derive the array of bytes that should be written to the level clear flags
-def get_door_color_bytes(missing_location_ids, last_loc_id=None, last_loc_ids = []):
+def get_door_color_bytes(missing_location_ids, last_loc_id=None, last_loc_ids = None):
     #derive initial array of all "02" for "complete"
     color_array = []
     for w in range(7):
@@ -142,9 +183,9 @@ def get_door_color_bytes(missing_location_ids, last_loc_id=None, last_loc_ids = 
         all_missing_location_ids.discard(last_loc_id)
     elif last_loc_ids:
         all_missing_location_ids = copy.copy(missing_location_ids)
-        all_missing_location_ids.difference_update(last_loc_ids)
+        all_missing_location_ids.difference_update(copy.copy(last_loc_ids))
     else:
-        all_missing_location_ids = missing_location_ids
+        all_missing_location_ids = copy.copy(missing_location_ids)
     #go through all missing locations, derive world and level, and set the corresponding byte to "01" for "not complete"
     for m in all_missing_location_ids:
         #Exploit the fact the X## is the world, #X# is the level of the location id
@@ -217,15 +258,15 @@ class KirbyNIDLClient(BizHawkClient):
                             {"cmd": "Say", "text": "Tried to use unpatched Kirby NiDL ROM. The client is only compatible with the patched US ROM!"},
                         ])
                 return False
-            elif rom_name == "APR KIRBY DX":
+            elif rom_name == "APR KIRBY DX": #Changing the title header like this probably leads to bad checksum and may freeze the BIOS. If I want to fix that, here's the source
                 
                 await ctx.send_msgs([
-                            {"cmd": "Say", "text": "DEBUG: Recognized patched US Kirby NiDL ROM!"},
+                            {"cmd": "Say", "text": "Recognized patched US Kirby NiDL ROM!"},
                         ])
                 logger.info('KNIDL client recognized and validated rom')
                 #Client Context Setup Stuff
                 ctx.game = self.game
-                ctx.items_handling = 0b011 # gets items from other worlds and OWN world
+                ctx.items_handling = 0b111 # d1: receive starting inventory. d2: gets items from own world. d3: gets items from other worlds
                 ctx.want_slot_data = True
                 ctx.command_processor.commands.update(knidl_client_commands) #Allows client to accept custom commands (?)
                 return True 
@@ -250,7 +291,7 @@ class KirbyNIDLClient(BizHawkClient):
                 pass
 
     ### Self Helper Function
-    def get_color_flag_writes(self, ctx: "BizHawkClientContext", last_loc_id=None, last_loc_ids=[]):
+    def get_color_flag_writes(self, ctx: "BizHawkClientContext", last_loc_id=None, last_loc_ids=None):
         color_flag_writes = []
         color_array = get_door_color_bytes(ctx.missing_locations, last_loc_id, last_loc_ids)
         for i in range(self.worlds_cleared+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
@@ -276,7 +317,7 @@ class KirbyNIDLClient(BizHawkClient):
             
             #Before anything, reset the init flag if we see the title screen (handles emu refreshes, I think)
             if screen_mod in (0x3,0x4):
-                logger.info('Detected title screen, setting flag to recalculate initial flags')
+                #logger.info('Detected title screen, setting flag to recalculate initial flags')
                 self.init_startup = True
                 self.initial_flags_written = False
                 return 
@@ -407,7 +448,7 @@ class KirbyNIDLClient(BizHawkClient):
 
             
             #while in a level or the OW, check to see if there are items to award
-            if (self.sync_counter != len(ctx.items_received) or self.init_startup) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
+            if ((ctx.items_received and self.sync_counter != len(ctx.items_received)) or self.init_startup) and (screen_mod == 0x5 or screen_mod == 0x8 or screen_mod == 0x13):
                 logger.info(f'init item sync sequence. Current sync counter is {self.sync_counter}. Number of items received is {len(ctx.items_received)}')
                 file_numberb, = await bizhawk.read(ctx.bizhawk_ctx, [
                     (FILE_NUMBER_ADR, 1, "EWRAM")       

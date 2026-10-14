@@ -19,7 +19,7 @@ class KirbyNIDLWorld(World):
     """
     # This docstring will be displayed on the WebHost. Typically a fun, "back of the box" description of what happens in the game
 
-    game = "Kirby Nightmare in Dream Land" #well duh
+    game = "Kirby Nightmare in Dream Land"
     web = web_world.KirbyNIDLWebWorld() #webworld goes here
 
     #Options go here with our world.
@@ -71,7 +71,7 @@ class KirbyNIDLWorld(World):
         return self.options.as_dict(
             'death_link',
             "pieces_in_pool", "req_pieces_num", "req_pieces_prc", 
-            "advanced_logic",
+            "warp_station_skips","advanced_logic",
             "lock_bonus_doors", "lock_copy_abilities", 
             "starting_vitality","max_vitality"
         )

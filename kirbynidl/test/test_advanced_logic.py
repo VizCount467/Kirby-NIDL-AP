@@ -13,7 +13,7 @@ class TestAdvLogicOff(KNIDLTestBase):
         with self.subTest('Test if 2-3 Cave 1up is impossible with only Throw and Advanced Logic off'):
             for _ in range(7):
                 self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock all levels
-            loc = self.world.get_location('Ice Cream Island 3 - 1up (Cave Tunnel)')
+            loc = self.world.get_location('Ice Cream Island 3 - 1up (Cave Ceiling Passage)')
             self.assertFalse(loc.can_reach(self.multiworld.state))
             self.collect(self.get_item_by_name('Throw'))
             self.assertFalse(loc.can_reach(self.multiworld.state))
@@ -32,7 +32,7 @@ class TestAdvLogicOn(KNIDLTestBase):
         with self.subTest('Test if 2-2 Cave 1up is possible with only Throw and Advanced Logic on'):
             for _ in range(3):
                 self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock world 4
-            loc = self.world.get_location('Ice Cream Island 3 - 1up (Cave Tunnel)')
+            loc = self.world.get_location('Ice Cream Island 3 - 1up (Cave Ceiling Passage)')
             self.assertFalse(loc.can_reach(self.multiworld.state))
             self.collect(self.get_item_by_name('Throw'))
             self.assertTrue(loc.can_reach(self.multiworld.state))

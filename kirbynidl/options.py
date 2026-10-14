@@ -27,6 +27,11 @@ class ReqPrcStarRod(Range):
     range_end = 100
     default = 0
 
+class WarpStationSkips(Toggle):
+    """Allows early access to a world from the Warp Star Station if that world's Warp Station Key is collected. 
+    Does not affect boss progression. Does not allow backtracking to lower-numbered worlds"""
+    display_name = 'Warp Station Skips'
+
 class AdvancedLogic(Toggle):
     """Incorporates various difficult, obscure, or unintuitive tricks into item placement logic. Check game page for more info"""
     display_name = 'Advanced Logic'
@@ -64,6 +69,7 @@ class KirbyNIDLOptions(PerGameCommonOptions):
     pieces_in_pool: NumberStarRod
     req_pieces_num: ReqNumStarRod
     req_pieces_prc: ReqPrcStarRod
+    warp_station_skips: WarpStationSkips
     advanced_logic: AdvancedLogic
     lock_bonus_doors: LockBonusDoors
     lock_copy_abilities: LockCopyAbilities

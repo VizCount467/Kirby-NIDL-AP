@@ -9,7 +9,7 @@ from .regions import WORLD_NAMES_INDEXED
 from BaseClasses import CollectionState
 from worlds.generic.Rules import add_rule, set_rule
 
-#Table of abilities mapped to the earlier world they can be obtained in the vanilla game
+#Table of abilities mapped to the earliest world they can be obtained in the vanilla game
 ABILITY_AVAILABILITY_TABLE = {
     'Beam' : 1,
     'Spark' : 1,
@@ -32,7 +32,32 @@ ABILITY_AVAILABILITY_TABLE = {
     'Throw' : 4
 }
 
+ABILITIES_IN_ALL_WORLDS = set(['Fire','Spark','Cutter','Sword','Burning','Beam'])
+#If ability in ABILITIES_IN_ALL_WORLDS or ABILITY_AVAILABILITY_TABLE[ability] == 1
 
+#List of abilities in each world, indexed to each world, ie 'Laser' in ABILITIES_IN_WORLD[1] -> True
+ABILITIES_IN_WORLD = [
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Needle','Freeze']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Parasol','Needle','Hi-Jump','Stone','Tornado']), #Also freeze, but only in the arena. A fact irrelevent unless we do world shuffle
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Hammer','Parasol','Needle','Ice','Freeze','Hi-Jump','Stone']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Parasol','Freeze','Stone','Tornado','Throw']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Wheel','Hi-Jump','Needle','Ice']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Hi-Jump','Needle','Ice','Freeze','Tornado','Throw']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Wheel','Freeze','Tornado','Throw'])
+]
+
+#Similar to above. Only relevant for Tornado (W5) and Wheel (W6) at this point
+ABILITIES_IN_MUSEUM = [
+    set(['Sword']),
+    set(['Laser','Fire']),
+    set(['Hi-Jump']),
+    set(['Sleep','Ball']),
+    set(['Stone','Tornado']),
+    set(['Wheel']),
+    set([])
+]
+
+#lambda state: state.can_reach_region("Egypt", player)
 
 # In order for AP to generate an item layout that is actually possible for the player to complete,
 # we need to define rules for our Entrances and Locations.
@@ -47,31 +72,47 @@ def set_all_rules(world: KirbyNIDLWorld) -> None:
     set_completion_condition(world)
 
 def set_all_location_rules(world: KirbyNIDLWorld) -> None:
-    #Now location rules will be run thousands or millions of time in a gen, so this is the ONE part of the code that
+    #Location rules will be run thousands or millions of time in a gen, so this is the ONE part of the code that
     #should be as optimized as possible. This means, put as little logic in the rule itself as possible (mainly, this means
     #evaluating conditions involving player options OUTSIDE the rule)
     # Using lambdas with boolean logic combos of state.has and state.has_all is standard
     #you can also AND rules together via add_rule(location,rule) once one rule is set, but this is actually slower and not recommended
 
     #Some helper functions for abilities. Needed since you can have an ability unlocked, but not be able to reach a world where you can access it
-    #req_pieces is a local variable to set "set all location rules" function. Hoping this is fine efficiency-wise
-    def can_use_ability(state, world, rp, ability):
-        if ABILITY_AVAILABILITY_TABLE[ability] == 1:
-                return state.has(ability, world.player) #W1 abilities are always available if unlocked
+    #req_pieces is a local variable to set "set all location rules" function. Hoping this is fine efficiency-wise. May not need it with new region-based function?
+    def can_use_ability(state, world, ability):
+        #Short-circuit not having the ability unlocked at all
+        if not state.has(ability, world.player):
+                return False
+        if ABILITY_AVAILABILITY_TABLE[ability] == 1 or ability in ABILITIES_IN_ALL_WORLDS:
+                #W1 abilities are always available if unlocked. For abilities in all worlds, we can also short-circuit the logic
+                return True
         else:
-                return state.has(ability, world.player) and state.has('Star Rod Piece', world.player, (ABILITY_AVAILABILITY_TABLE[ability]-1)*rp)
+                #Check if player has access to any world with ability
+                can_access_world = False
+                for i in range(7):
+                    if state.can_reach_region(WORLD_NAMES_INDEXED[i],world.player) and ability in ABILITIES_IN_WORLD[i]:
+                        can_access_world = True
+                        break
+                if can_access_world:
+                        return True
+                #Check the niche cases of W5 Tornado and W6 Wheel via Museum. W2 Freeze via Arena would also be here, but that's a W1 ability
+                if ability == 'Tornado' and state.has('Yogurt Yard Museum Key') and state.can_reach_region('Yogurt Yard'):
+                        return True
+                if ability == 'Wheel' and state.has('Orange Ocean Museum Key') and state.can_reach_region('Orange Ocean'):
+                        return True
 
-    def can_use_any_ability(state,world,rp,ability_list):
-        return any([can_use_ability(state,world,rp,ability) for ability in ability_list])
+    def can_use_any_ability(state,world,ability_list):
+        return any([can_use_ability(state,world,ability) for ability in ability_list])
 
-    def can_pound_stake(state,world,rp):
-        return can_use_any_ability(state,world,rp,('Stone','Hammer'))
+    def can_pound_stake(state,world):
+        return can_use_any_ability(state,world,('Stone','Hammer'))
 
-    def can_light_fuse(state,world,rp):
-        return can_use_any_ability(state,world,rp,('Fire','Burning','Laser'))
+    def can_light_fuse(state,world):
+        return can_use_any_ability(state,world,('Fire','Burning','Laser'))
 
-    def can_destroy_metal_side(state,world,rp):
-        return can_use_any_ability(state, world, rp, ('Burning','Wheel','Hammer'))
+    def can_destroy_metal_side(state,world):
+        return can_use_any_ability(state, world,  ('Burning','Wheel','Hammer'))
     
     #Now, since the entrance rules handle all Star Rod Pieces, all we need to set is the logic for ability use
     #And also the boss checks, since those take place in world X, but require X Star Rod pieces
@@ -98,222 +139,222 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     #For all other location rules, there are no real patterns. So, everything will just be manual, I guess
     ###LEVEL PICKUP LOGIC
     set_rule(world.get_location("Ice Cream Island 3 - Tomato (UFO Room)"),
-             lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+             lambda state, : can_use_any_ability(state, world,  (
                  'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer'
              )))
     
     if world.options.advanced_logic:
         set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Ceiling Passage)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
                 )) 
                 or state.has('UFO',world.player)
-                or can_use_ability(state, world, rp,'Throw')
+                or can_use_ability(state, world, 'Throw')
                 )
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 1)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 ))
-                or can_use_ability(state,world,rp,'Cutter')
+                or can_use_ability(state,world,'Cutter')
                 )
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 2)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 ))
-                or can_use_ability(state,world,rp,'Cutter')
+                or can_use_ability(state,world,'Cutter')
         )
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 3)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 ))
-                or can_use_ability(state,world,rp,'Cutter')
+                or can_use_ability(state,world,'Cutter')
                 )
     else:
         set_rule(world.get_location("Ice Cream Island 3 - 1up (Cave Ceiling Passage)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Burning','Sword','Freeze','Needle','Hi-Jump','Parasol','Hammer','Wheel'
                 )) 
                 or state.has('UFO',world.player)
                 )
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 1)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 )))
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 2)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 )))
         set_rule(world.get_location("Ice Cream Island 4 - Pep Drink (Laser Room 3)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw'
                 )))
 
     set_rule(world.get_location("Ice Cream Island 4 - 1up (Laser Room 4)"),
-            lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+            lambda state, : can_use_any_ability(state, world,  (
                 'Beam','Spark','Fire','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Ice','Throw','Wheel'
             )))
     if not world.options.advanced_logic: #following checks can be obtained with no abilities by use of double star
         set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 1)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-                or can_use_ability(state,world,rp,'Throw')
+                lambda state, : can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
                 )
         set_rule(world.get_location("Ice Cream Island 5 - 1up (Metal Blocks 2)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-                or can_use_ability(state,world,rp,'Throw')
+                lambda state, : can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
                 )
     if world.options.advanced_logic:
         set_rule(world.get_location("Ice Cream Island 5 - 1up (Gordo Guarded)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Burning','Tornado','Wheel'
                 )))
     else:
         set_rule(world.get_location("Ice Cream Island 5 - 1up (Gordo Guarded)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Burning','Tornado'
                 )))
     
     set_rule(world.get_location("Butter Building 5 - Tomato (Stake Room 1)"),
-            lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+            lambda state, : can_pound_stake(state,world))
     set_rule(world.get_location("Butter Building 5 - 1up (Stake Room 2)"),
-            lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+            lambda state, : can_pound_stake(state,world))
     
     set_rule(world.get_location("Grape Garden 3 - 1up (Cannon Reward)"),
-            lambda state, rp=req_pieces_per_boss: can_light_fuse(state,world,rp))
+            lambda state, : can_light_fuse(state,world))
     set_rule(world.get_location("Grape Garden 4 - 1up (Wheel Race)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Wheel'))
+            lambda state, : can_use_ability(state, world,  'Wheel'))
     set_rule(world.get_location("Grape Garden 5 - 1up (Burning Room Bottom)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Burning'))
+            lambda state, : can_use_ability(state, world,  'Burning'))
     set_rule(world.get_location("Grape Garden 6 - 1up (Stake Room)"),
-            lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+            lambda state, : can_pound_stake(state,world))
 
     set_rule(world.get_location("Yogurt Yard 3 - Tomato (Stake Room Left)"),
-            lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+            lambda state, : can_pound_stake(state,world))
     set_rule(world.get_location("Yogurt Yard 3 - 1up (Stake Room Right)"),
-            lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+            lambda state, : can_pound_stake(state,world))
     if world.options.advanced_logic:
         set_rule(world.get_location("Yogurt Yard 4 - 1up (Spike Tunnel)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, ('Burning','Tornado')))
+                lambda state, : can_use_any_ability(state, world,  ('Burning','Tornado')))
     else:
         set_rule(world.get_location("Yogurt Yard 4 - 1up (Spike Tunnel)"),
-                lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Burning'))
+                lambda state, : can_use_ability(state, world,  'Burning'))
     set_rule(world.get_location("Yogurt Yard 6 - 1up (Big Switch Room Left)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Hammer'))
+            lambda state, : can_use_ability(state, world,  'Hammer'))
 
     set_rule(world.get_location("Orange Ocean 1 - 1up (Metal Blocks)"),
-            lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-            or can_use_ability(state,world,rp,'Throw')
+            lambda state, : can_destroy_metal_side(state,world)
+            or can_use_ability(state,world,'Throw')
             )
     if not world.options.advanced_logic: #another set where a double star makes them obtainable without abilities
         set_rule(world.get_location("Orange Ocean 3 - Pep Drink (Bonkers Room)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-                or can_use_ability(state,world,rp,'Throw')
+                lambda state, : can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
                 )
         set_rule(world.get_location("Orange Ocean 3 - 1up (Man Overboard!)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-                or can_use_ability(state,world,rp,'Throw')
+                lambda state, : can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
                 )
         set_rule(world.get_location("Orange Ocean 3 - Tomato (Laser Ball Room)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
-                or can_use_ability(state,world,rp,'Throw')
+                lambda state, : can_destroy_metal_side(state,world)
+                or can_use_ability(state,world,'Throw')
                 )
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 1)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Beam'))
+            lambda state, : can_use_ability(state, world,  'Beam'))
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 2)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Beam'))
+            lambda state, : can_use_ability(state, world,  'Beam'))
     set_rule(world.get_location("Orange Ocean 4 - 1up (Beam Bomb Block 3)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Beam'))
+            lambda state, : can_use_ability(state, world,  'Beam'))
     if not world.options.advanced_logic: #double star
         set_rule(world.get_location("Orange Ocean 6 - 1up (Upper Path Metal Blocks)"),
-                lambda state, rp=req_pieces_per_boss: can_destroy_metal_side(state,world,rp)
+                lambda state, : can_destroy_metal_side(state,world)
                 or state.has('UFO',world.player)
                 )
     if world.options.advanced_logic: #advanced logic enables cutter and wheel
         set_rule(world.get_location("Rainbow Resort 1 - 1up (Laser Room)"),
-                lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                lambda state, : can_use_any_ability(state, world,  (
                         'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw','Cutter','Wheel'
                 )))
     else:
         set_rule(world.get_location("Rainbow Resort 1 - 1up (Laser Room)"),
-                   lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, (
+                   lambda state, : can_use_any_ability(state, world,  (
                            'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw'
                    )))
         
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Fire'))
+            lambda state, : can_use_ability(state, world,  'Fire'))
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Fire'))
+            lambda state, : can_use_ability(state, world,  'Fire'))
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 3)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Fire'))
+            lambda state, : can_use_ability(state, world,  'Fire'))
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 4)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Fire'))
+            lambda state, : can_use_ability(state, world,  'Fire'))
     set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Fire'))
+            lambda state, : can_use_ability(state, world,  'Fire'))
 
     ###BIG SWITCH LOGIC
     #Technically, the 4-6 big switch is free if you know where it is, but no new player would find it without the intended strat
     set_rule(world.get_location("Grape Garden 6 - Big Switch"),
-        lambda state, rp=req_pieces_per_boss: state.has("Light", world.player)
+        lambda state, : state.has("Light", world.player)
         )
     if world.options.advanced_logic:
         set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
-                lambda state, rp=req_pieces_per_boss: 
+                lambda state, : 
                 #Condition 1: any fuse lighter and Hi-Jump
-                (can_light_fuse(state,world,rp) and can_use_ability(state, world, rp,'Hi-Jump')
+                (can_light_fuse(state,world) and can_use_ability(state, world, 'Hi-Jump')
                 ) or
                 #Condition 2: Burning
-                (can_use_ability(state, world, rp,'Burning')
+                (can_use_ability(state, world, 'Burning')
                 ) or
                 #Condition 3: Any of a set of abilities that can break the blocks and Fire. Advanced allows parasol, which is fairly tricky
-                (can_use_ability(state,world,rp,'Fire') and can_use_any_ability(state,world,rp,(
+                (can_use_ability(state,world,'Fire') and can_use_any_ability(state,world,(
                         'Spark','Sword','Freeze','Needle','Hammer','Throw','Parasol'
                 ))
                 )
         )
     else:
         set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
-                lambda state, rp=req_pieces_per_boss: 
-                (can_light_fuse(state,world,rp) and can_use_ability(state, world, rp,'Hi-Jump')
+                lambda state, : 
+                (can_light_fuse(state,world) and can_use_ability(state, world, 'Hi-Jump')
                 ) or
-                (can_use_ability(state, world, rp,'Burning')
+                (can_use_ability(state, world, 'Burning')
                 ) or
-                (can_use_ability(state,world,rp,'Fire') and can_use_any_ability(state,world,rp,(
+                (can_use_ability(state,world,'Fire') and can_use_any_ability(state,world,(
                         'Spark','Sword','Freeze','Needle','Hammer','Throw'
                 ))
                 )
         )
     set_rule(world.get_location("Yogurt Yard 6 - Big Switch"),
-            lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Hammer'))
+            lambda state, : can_use_ability(state, world,  'Hammer'))
     
     set_rule(world.get_location("Orange Ocean 1 - Big Switch"), #Break metal block below
-        lambda state, rp=req_pieces_per_boss: can_use_any_ability(state, world, rp, ('Wheel','Hammer','Stone')))
+        lambda state, : can_use_any_ability(state, world,  ('Wheel','Hammer','Stone')))
     set_rule(world.get_location("Orange Ocean 2 - Big Switch"),
-        lambda state, rp=req_pieces_per_boss: can_pound_stake(state,world,rp))
+        lambda state, : can_pound_stake(state,world))
     if world.options.advanced_logic:
         set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
-                lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Laser'))
+                lambda state, : can_use_ability(state, world,  'Laser'))
     else:
         set_rule(world.get_location("Orange Ocean 3 - Big Switch"),
-                lambda state, rp=req_pieces_per_boss: can_use_ability(state, world, rp, 'Laser') 
+                lambda state, : can_use_ability(state, world,  'Laser') 
                 and (
-                        can_destroy_metal_side(state,world,rp)
-                        or can_use_ability(state,world,rp,'Throw')
+                        can_destroy_metal_side(state,world)
+                        or can_use_ability(state,world,'Throw')
                 ))
     set_rule(world.get_location("Orange Ocean 5 - Big Switch"),
-                lambda state, rp=req_pieces_per_boss: can_light_fuse(state,world,rp))
+                lambda state, : can_light_fuse(state,world))
     if world.options.advanced_logic:
         set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
-                        lambda state, rp=req_pieces_per_boss: can_use_any_ability(state,world,rp,('Burning','Wheel','Hammer'))
+                        lambda state, : can_use_any_ability(state,world,('Burning','Wheel','Hammer'))
                         or state.has("UFO", world.player)
                 )
         set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), #Break rock blocks on ceiling, THEN side metal in same room. 
-                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or can_use_ability(state,world,rp,'Burning'))
+                        lambda state, : can_use_ability(state,world,'Hammer') or can_use_ability(state,world,'Burning'))
     else:
         set_rule(world.get_location("Orange Ocean 6 - Big Switch"), #Break metal block over gap
-                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Burning')
+                        lambda state, : can_use_ability(state,world,'Burning')
                         or state.has("UFO", world.player)
                 )
         set_rule(world.get_location("Rainbow Resort 1 - Big Switch"), 
-                        lambda state, rp=req_pieces_per_boss: can_use_ability(state,world,rp,'Hammer') or can_use_ability(state,world,rp,'Burning'))
+                        lambda state, : can_use_ability(state,world,'Hammer') or can_use_ability(state,world,'Burning'))
 
 
     ##Arenas Logic

@@ -1,6 +1,6 @@
 # Kirby Nightmare in Dream Land Archipelago
 
-Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This game is currently PLAYABLE and in an EARLY RELEASE phase. The client is stable and the game is functional, but some undetected bugs may still exist. Please report any bugs/issues to [the AP Discord thread](https://discord.com/channels/731205301247803413/1533318615057567885) in "future-game-design". 
+Welcome to the Kirby Nightmare in Dreamland Archiepelago implementation. This game is fully playable, and development is ongoing with various planned features. The client is stable and the game is functional, but some undetected bugs may still exist. Please report any bugs/issues to [the AP Discord thread](https://discord.com/channels/731205301247803413/1533318615057567885) in "future-game-design". 
 
 ## General Structure
 
@@ -11,6 +11,7 @@ All levels and doors are unlocked from the start, except for boss doors. You wil
 Download the kirbynidl.apworld file from the latest GitHub release and install it by opening it the Archipelago program or moving it into your "custom worlds" folder. From there, it should work the same as any other custom GBA AP game. 
 
 See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/blob/master/kirbynidl/docs/setup_en.md) for complete details.
+Also check out the [Poptracker by Blakel](https://github.com/blakelmenakle/KNiDL-Poptracker), if interested. 
 
 ## Features Currently Implemented
 - Locations
@@ -50,24 +51,18 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
 - Kirby Palette changer (implemented in other randomizers of the game)
 - Level and/or World Shuffle (not sure where to even begin) (also complicates ability logic)
 - Enemy Ability Shuffle (complicates ability logic)
-- Option to use open Warp Star stations to skip bosses (slightly complicates logic, requires ASM tinkering)
 - Option to play as Meta Knight (Kirby still plays the final boss? Stop at Dedede?)
 - Energy Link Support
 - On-Screen AP Text (via either the nightmare defeated story narration or the label that appears at the top of the screen in each overworld lobby) (maybe the credits too??)
 
 ## Known Bugs and Issues
 
+- The game may crash at the GBA BIOS. Set Bizhawk to skip the BIOS if this is a problem for you.
 - Getting grabbed by certain midbosses with invincibility active may still hurt Kirby (and can make the invincibility theme play until the next room)
 - The interaction of savestates and the various client-dependent game interactions is completely unknown -- use save states at your own risk!
 
 ## Latest Updates (See Releases for Full Changelog)
 
-- 9/25/26: Fixed bugs found in previous release. Removed "beta" and "unstable" language.
-    - Warp Star stations are no longer always boarded up before restart, and have the appropriate destinations unlocked for currently unlocked worlds
-    - Added failsafe for missing boss checks -- on initialization, the client checks in-game values and awards all cleared boss locations, if necessary.
-    - Fixed door lock bug in ASM allowing "locked" OW doors to be entered
-    - Clean up 7-1 Big Switch Rules
-    - Rename various locations to give them more personality
 - 10/7/26: 
     - Added Death Link!
     - Added Overworld door color manipulation to indicate completion (flashing red if a level has unchecked locations, yellow for full clear)
@@ -76,6 +71,11 @@ See the [setup file in the docs](https://github.com/VizCount467/Kirby-NIDL-AP/bl
     - Fixed the starting vitality option not working and defaulting to 3
 - 10/8/26:
     - Fixed bug in hijacked healing routine where the Kirby "actionable" flag wasn't being reset
+- 10/14/26:
+    - Added client "starrod" and "abilities" command
+    - Updated docs with BIOS crash note, poptracker links
+    - Fixed client not receiving starting inventory
+    - Added Warp Station skips to Options, Tests, and gen logic (no client yet though)
 
 
 ## Credits and Shout-Outs

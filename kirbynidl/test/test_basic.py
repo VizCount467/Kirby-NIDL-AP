@@ -1,6 +1,8 @@
 from .bases import KNIDLTestBase
 from ..regions import WORLD_NAMES_INDEXED
 
+##NOTE!!: Terminal command to run knidl tests on my environment is py -V:3.13 -m pytest -k kirbynidl --continue-on-collection-errors in the AP Source directory. 
+
 class TestBasic(KNIDLTestBase):
     #Inside of a Test Class, we can set whatever world options. Options unspecified will use their default values
     options = {
@@ -75,7 +77,7 @@ class TestBasic(KNIDLTestBase):
             self.collect(self.get_item_by_name('Wheel'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
-            loc = self.world.get_location('Grape Garden 3 - 1up (Cannon)')
+            loc = self.world.get_location('Grape Garden 3 - 1up (Cannon Reward)')
             self.assertFalse(loc.can_reach(self.multiworld.state))
             self.collect(self.get_item_by_name('Fire'))
             self.assertTrue(loc.can_reach(self.multiworld.state))

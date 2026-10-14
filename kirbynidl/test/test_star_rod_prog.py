@@ -204,3 +204,49 @@ class TestPiecesPercent(KNIDLTestBase):
             self.assertFalse(loc.can_reach(self.multiworld.state))
             self.collect(self.get_item_by_name('Star Rod Piece')) #7/10
             self.assertTrue(loc.can_reach(self.multiworld.state))
+
+class TestWarpStationSkips(KNIDLTestBase):
+    options = {
+        'pieces_in_pool': 7,
+        'req_pieces_num' : 7,
+        'req_pieces_prc' : 0,
+        'warp_station_skips' : True
+    }
+    def test_ws_skips_1(self):
+        with self.subTest('Test Warp Star Station skip logic, source WS key then destination WS key'):
+            loc = self.world.get_location('Orange Ocean 1 - Level Clear')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Vegetable Valley Warp Station Key'))
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Orange Ocean Warp Station Key'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+            #Boss is still inaccessible
+            loc = self.world.get_location('Orange Ocean - Boss (Meta Knight)')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+
+    def test_ws_skips_2(self):
+        with self.subTest('Test Warp Star Station skip logic, dest WS key then source WS key'):
+            loc = self.world.get_location('Orange Ocean 1 - Level Clear')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Orange Ocean Warp Station Key'))
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Vegetable Valley Warp Station Key'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+    def test_ws_skips_abilities(self):
+        with self.subTest('Test Warp Star Station ability logic. Get access to a world early and grab an ability from there early'):
+            loc = self.world.get_location('Ice Cream Island 5 - 1up (Metal Blocks 1)')
+            #Get W2 Access
+            self.collect(self.get_item_by_name('Star Rod Piece'))
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            #Get Hammer Access
+            self.collect(self.get_item_by_name('Hammer'))
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            #Get Access to W4 (no hammer)
+            self.collect(self.get_item_by_name('Ice Cream Island Warp Station Key'))
+            self.collect(self.get_item_by_name('Grape Garden Warp Station Key'))
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            #Get Access to W3 (has hammer)
+            self.collect(self.get_item_by_name('Butter Building Warp Station Key'))
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
