@@ -84,3 +84,10 @@ Starting a new file with collected items will cause all collected items to be aw
 - `Maximum Vitality`:
     Number of health segments Kirby can possibly obtain. Can be any number of 1-6. A number of vitality items equal to this minus the starting vitality will be added to the item pool. 
 
+## Client Commands
+
+- `/starrod`:
+    Lists info on the number of required, existing, and currently collected Star Rod Pieces. Useful for knowing how many more pieces you need to reach the next world or fight the final boss. 
+
+- `/abilities`:
+    Lists all currently unlocked abilities. Use this if you want to know what abilities you have access to at any time. 
