@@ -529,7 +529,7 @@ FreeROM_DoorLock:
     bx r1
 
 @@Door_XY_Table:
-    ;;Because of little-endian-ness, I'm pretty sure these must be listed out as YYXX (since we made Y the higher digits)
+    ;;Because of little-endian-ness, These are written as YYXX (since we made Y the higher digits)
     ;;World 1
     .halfword 0x0000 ;0=prev
     .halfword 0x1006 ;1=level 1
@@ -549,7 +549,7 @@ FreeROM_DoorLock:
     .halfword 0x071B ;F=Boss/next
 
     ;;World 2
-    .halfword 0x0000 ;0=prev
+    .halfword 0x0C02 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3
@@ -567,7 +567,7 @@ FreeROM_DoorLock:
     .halfword 0x062B ;F=Boss/next
 
     ;;World 3
-    .halfword 0x0000 ;0=prev
+    .halfword 0x2602 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3
@@ -585,7 +585,7 @@ FreeROM_DoorLock:
     .halfword 0x0607 ;F=Boss/next
 
     ;;World 4
-    .halfword 0x0000 ;0=prev
+    .halfword 0x1302 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3
@@ -603,7 +603,7 @@ FreeROM_DoorLock:
     .halfword 0x042B ;F=Boss/next
 
     ;;World 5
-    .halfword 0x0000 ;0=prev
+    .halfword 0x0302 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3
@@ -621,7 +621,7 @@ FreeROM_DoorLock:
     .halfword 0x082A ;F=Boss/next
 
     ;;World 6
-    .halfword 0x0000 ;0=prev
+    .halfword 0x0902 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3
@@ -639,7 +639,7 @@ FreeROM_DoorLock:
     .halfword 0x082C ;F=Boss/next
 
     ;;World 7
-    .halfword 0x0000 ;0=prev
+    .halfword 0x0B02 ;0=prev
     .halfword 0x0000 ;1=level 1
     .halfword 0x0000 ;2=level 2
     .halfword 0x0000 ;3=level 3

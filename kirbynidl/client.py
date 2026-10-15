@@ -16,7 +16,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
+logger.setLevel(logging.INFOL) #Set to CRITICAL for release
 client_logger = logging.getLogger('Client') #This logger prints to the AP client window.
 
 ###DATA
@@ -26,7 +26,7 @@ KNIDL_BASE_ID = 2742740
 
 #Table (list) of what index in each world's bit array each door type corresponds to
 DOOR_NAME_TO_BIT_MAP = [
-    'Prev', #The prev door will never be locked
+    'Prev', #The prev door CAN be locked for Warp Station skips
     'Level 1','Level 2','Level 3','Level 4','Level 5','Level 6', #levels 1-6 = index 1-6
     'Bomb Rally','Air Grind','Quick Draw', #Minigames 7-9 in order of first appearence
     'Arena','Museum','Unused1','Unused2','Warp Station','Boss' #A is for Arena, followed by B Museum. Warp Station E and Boss F are last
@@ -237,7 +237,8 @@ class KirbyNIDLClient(BizHawkClient):
         self.sent_arena_check = False
         self.locked_abilities = copy.copy(ABILITY_LIST_INDEXED)[1:] #Exclude the starting index of 0, which is a blank string
         self.req_pieces = None
-        self.worlds_cleared = 0
+        self.worlds_cleared = 0 #Worlds cleared according to game RAM. Relvant since only the game can tell us if a boss was actually beaten
+        self.worlds_unlocked = [True,False,False,False,False,False,False] #Array of Bools. True if world can be visited, via boss progression or warp star station
         self.level_status_updated = True
         self.switchexists_bitarr = 0
         self.file_number = 0
@@ -294,11 +295,12 @@ class KirbyNIDLClient(BizHawkClient):
     def get_color_flag_writes(self, ctx: "BizHawkClientContext", last_loc_id=None, last_loc_ids=None):
         color_flag_writes = []
         color_array = get_door_color_bytes(ctx.missing_locations, last_loc_id, last_loc_ids)
-        for i in range(self.worlds_cleared+1): #write for W1 with 0 bosses cleared, W7 with 6 bosses cleared
+        for i in range(7): 
             level_count = LEVELS_PER_WORLD_INDEX[i]
-            for offset in range(level_count):
-                color_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [color_array[i][offset]], "IWRAM"))
-                color_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [color_array[i][offset]], "EWRAM"))
+            if self.worlds_unlocked[i]: #only do writes for unlocked worlds
+                for offset in range(level_count):
+                    color_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [color_array[i][offset]], "IWRAM"))
+                    color_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [color_array[i][offset]], "EWRAM"))
         return color_flag_writes
     
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
@@ -366,13 +368,28 @@ class KirbyNIDLClient(BizHawkClient):
                 ])
                 self.file_number = int.from_bytes(file_numberb)
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
+
+                #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
+                for i in range(self.worlds_cleared):
+                    self.worlds_unlocked[i+1] = True #clear W1 = unlock W2
+                if ctx.slot_data.get("warp_station_skips") == True:
+                    for i,w in enumerate(WORLD_NAMES_INDEXED):
+                        if ITEM_NAME_TO_ID[f'{w} Warp Station Key'] in ctx.items_received:
+                            self.worlds_unlocked[i] = True
+                logger.info(f'Worlds unlocked is {' '.join(self.worlds_unlocked)}')
+
                 #set the level clear flags for levels in all CLEARED worlds to 02
                 logger.debug(ctx.checked_locations)
                 logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared count is {self.worlds_cleared}')
                 clear_flag_writes = self.get_color_flag_writes(ctx)
                 #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
-                n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.worlds_cleared+1)])
-                self.switchexists_bitarr = (1 << n_switches) - 1
+                bigswitch_bitstring = ''
+                for i in range(7):
+                    if self.worlds_unlocked[i]:
+                        bigswitch_bitstring = '1'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring #reverse add order because bits for W1 must be on right side of the number
+                    else:
+                        bigswitch_bitstring = '0'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring
+                self.switchexists_bitarr = int(bigswitch_bitstring,base=2)
                 switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
                 logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
                 clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
@@ -383,7 +400,8 @@ class KirbyNIDLClient(BizHawkClient):
                                     (EW_SWITCHEXISTS_BITARR+2 +self.file_number*0x100,[switchexists_bytes[2]],'EWRAM')
                                     ]
                 #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
-                ws_bitarr = 2**(self.worlds_cleared+1)-1
+                ws_bitstring = ''.join(['1' if self.worlds_unlocked[6-i] else '0' for i in range(7)]) #6-i to reverse the order and put the bit for W1 at the right side of the number
+                ws_bitarr = int(ws_bitstring,base=2)
                 clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr], 'EWRAM'))
                 # logger.info(f'Clear Flags Write List is')
                 # logger.info(clear_flag_writes)
@@ -422,11 +440,26 @@ class KirbyNIDLClient(BizHawkClient):
                     (WORLDS_CLEARED_IW, 1, "IWRAM")       
                 ])
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
+
+                #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
+                for i in range(self.worlds_cleared):
+                    self.worlds_unlocked[i+1] = True #clear W1 = unlock W2
+                if ctx.slot_data.get("warp_station_skips") == True:
+                    for i,w in enumerate(WORLD_NAMES_INDEXED):
+                        if ITEM_NAME_TO_ID[f'{w} Warp Station Key'] in ctx.items_received:
+                            self.worlds_unlocked[i] = True
+                logger.info(f'Worlds unlocked is {' '.join(self.worlds_unlocked)}')
+                                            
                 logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared is {self.worlds_cleared}')
                 clear_flag_writes = self.get_color_flag_writes(ctx)
                 #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
-                n_switches = sum(BIGSWITCHES_PER_WORLD_INDEX[:(self.worlds_cleared+1)])
-                self.switchexists_bitarr = (1 << n_switches) - 1 
+                bigswitch_bitstring = ''
+                for i in range(7):
+                    if self.worlds_unlocked[i]:
+                        bigswitch_bitstring = '1'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring #reverse add order because bits for W1 must be on right side of the number
+                    else:
+                        bigswitch_bitstring = '0'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring
+                self.switchexists_bitarr = int(bigswitch_bitstring,base=2) 
                 switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
                 logger.debug(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
                 clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
@@ -437,7 +470,8 @@ class KirbyNIDLClient(BizHawkClient):
                                     (EW_SWITCHEXISTS_BITARR+2 +self.file_number*0x100,[switchexists_bytes[2]],'EWRAM')
                                     ]
                 #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
-                ws_bitarr = 2**(self.worlds_cleared+1)-1
+                ws_bitstring = ''.join(['1' if self.worlds_unlocked[6-i] else '0' for i in range(7)]) #6-i to reverse the order and put the bit for W1 at the right side of the number
+                ws_bitarr = int(ws_bitstring,base=2)
                 clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr] , 'EWRAM'))
                 # logger.info(f'Clear Flags Write List is')
                 # logger.info(clear_flag_writes)
@@ -490,6 +524,12 @@ class KirbyNIDLClient(BizHawkClient):
                         dn = received_item_name[:-4] #minus Key, ie 'Vegetable Valley Bomb Rally'
                         if dn in self.locked_door_names:
                             self.locked_door_names.remove(dn)
+
+                    #If WS skips, if any world is unlocked but its previous world is not, lock that world's "prev" door
+                    if ctx.slot_data.get('warp_station_skips') == True:
+                        for i in range(6):
+                            if self.worlds_unlocked[i+1] == True and self.worlds_unlocked[i] == False:
+                                self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i+1]} Prev') 
 
                     if received_item_id_readable > 50 and received_item_id_readable < 75:
                         ability_id = received_item_id_readable - 50
