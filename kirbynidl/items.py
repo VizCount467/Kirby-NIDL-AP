@@ -90,19 +90,19 @@ def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
     #There are only 4 possible filler items. 
     #Star Rod is of course progression
     #Following the lead of the Kirby Super Star AP, all abilities are classified as progression, even if some are not involved in logic
-    #EXCEPT for the limited use Crash and Mike, which are Useful, and Sleep, which is a Trap
+    #EXCEPT for Mike, which is Useful, and Sleep, which is a Trap. (Crash can light fuses in Advanced Logic, making it prog)
     #Vitality upgrades are useful, side door unlocks filler
     classification = None
     if name in Filler_Items:
         classification = ItemClassification.filler
     elif name == 'Vitality':
         classification = ItemClassification.useful
-    elif name in ('Crash', 'Mike'):
+    elif name == 'Mike':
         classification = ItemClassification.useful
     elif name == 'Sleep':
         classification = ItemClassification.trap
     elif 'Key' in name:
-        if 'Arena' or 'Warp Station' in name: #Only Arena keys are progression, Minigames are fluff, Museums and Warp Stations aren't all that useful
+        if 'Arena' in name or 'Warp Station' in name: #Only Arena keys are progression, Minigames are fluff, Museums and Warp Stations aren't all that useful
             classification = ItemClassification.progression
         else:
             classification = ItemClassification.filler

@@ -19,6 +19,7 @@ ABILITY_AVAILABILITY_TABLE = {
     'Sword' : 1,
     'Freeze' : 1,
     'Needle' : 1,
+    'Crash' : 1,
     'Laser' : 2,
     'Hi-Jump' : 2,
     'Parasol' : 2,
@@ -32,18 +33,18 @@ ABILITY_AVAILABILITY_TABLE = {
     'Throw' : 4
 }
 
-ABILITIES_IN_ALL_WORLDS = set(['Fire','Spark','Cutter','Sword','Burning','Beam'])
+ABILITIES_IN_ALL_WORLDS = set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash'])
 #If ability in ABILITIES_IN_ALL_WORLDS or ABILITY_AVAILABILITY_TABLE[ability] == 1
 
 #List of abilities in each world, indexed to each world, ie 'Laser' in ABILITIES_IN_WORLD[1] -> True
 ABILITIES_IN_WORLD = [
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Needle','Freeze']),
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Parasol','Needle','Hi-Jump','Stone','Tornado']), #Also freeze, but only in the arena. A fact irrelevent unless we do world shuffle
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Hammer','Parasol','Needle','Ice','Freeze','Hi-Jump','Stone']),
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Laser','Wheel','Parasol','Freeze','Stone','Tornado','Throw']),
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Wheel','Hi-Jump','Needle','Ice']),
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Hi-Jump','Needle','Ice','Freeze','Tornado','Throw']),
-    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Parasol','Laser','Stone','Hammer','Wheel','Freeze','Tornado','Throw'])
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Needle','Freeze']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Laser','Wheel','Parasol','Needle','Hi-Jump','Stone','Tornado']), #Also freeze, but only in the arena. A fact irrelevent unless we do world shuffle
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Laser','Wheel','Hammer','Parasol','Needle','Ice','Freeze','Hi-Jump','Stone']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Laser','Wheel','Parasol','Freeze','Stone','Tornado','Throw']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Parasol','Laser','Stone','Hammer','Wheel','Hi-Jump','Needle','Ice']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Parasol','Laser','Stone','Hammer','Hi-Jump','Needle','Ice','Freeze','Tornado','Throw']),
+    set(['Fire','Spark','Cutter','Sword','Burning','Beam','Crash','Parasol','Laser','Stone','Hammer','Wheel','Freeze','Tornado','Throw'])
 ]
 
 #Similar to above. Only relevant for Tornado (W5) and Wheel (W6) at this point
@@ -108,8 +109,12 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     def can_pound_stake(state,world):
         return can_use_any_ability(state,world,('Stone','Hammer'))
 
-    def can_light_fuse(state,world):
-        return can_use_any_ability(state,world,('Fire','Burning','Laser'))
+    if world.options.advanced_logic:
+        def can_light_fuse(state,world):
+                return can_use_any_ability(state,world,('Fire','Burning','Laser','Crash'))
+    else:
+        def can_light_fuse(state,world):
+                return can_use_any_ability(state,world,('Fire','Burning','Laser'))
 
     def can_destroy_metal_side(state,world):
         return can_use_any_ability(state, world,  ('Burning','Wheel','Hammer'))
@@ -278,17 +283,28 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                    lambda state, : can_use_any_ability(state, world,  (
                            'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw'
                    )))
-        
-    set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
-            lambda state, : can_use_ability(state, world,  'Fire'))
-    set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
-            lambda state, : can_use_ability(state, world,  'Fire'))
-    set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 3)"),
-            lambda state, : can_use_ability(state, world,  'Fire'))
-    set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 4)"),
-            lambda state, : can_use_ability(state, world,  'Fire'))
-    set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
-            lambda state, : can_use_ability(state, world,  'Fire'))
+    if not world.options.advanced_logic:
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
+                lambda state, : can_use_ability(state, world,  'Fire'))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
+                lambda state, : can_use_ability(state, world,  'Fire'))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 3)"),
+                lambda state, : can_use_ability(state, world,  'Fire'))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 4)"),
+                lambda state, : can_use_ability(state, world,  'Fire'))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
+                lambda state, : can_use_ability(state, world,  'Fire'))
+    else:
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
+                lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
+                lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 3)"),
+                lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 4)"),
+                lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
+        set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
+                lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
 
     ###BIG SWITCH LOGIC
     #Technically, the 4-6 big switch is free if you know where it is, but no new player would find it without the intended strat
@@ -298,8 +314,8 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     if world.options.advanced_logic:
         set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
                 lambda state, : 
-                #Condition 1: any fuse lighter and Hi-Jump
-                (can_light_fuse(state,world) and can_use_ability(state, world, 'Hi-Jump')
+                #Condition 1: any fuse lighter (that's not Crash) and Hi-Jump
+                (can_use_any_ability(state, world, ('Fire','Laser')) and can_use_ability(state, world, 'Hi-Jump')
                 ) or
                 #Condition 2: Burning
                 (can_use_ability(state, world, 'Burning')
@@ -313,7 +329,7 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
     else:
         set_rule(world.get_location("Yogurt Yard 5 - Big Switch"),
                 lambda state, : 
-                (can_light_fuse(state,world) and can_use_ability(state, world, 'Hi-Jump')
+                (can_use_any_ability(state, world, ('Fire','Laser')) and can_use_ability(state, world, 'Hi-Jump')
                 ) or
                 (can_use_ability(state, world, 'Burning')
                 ) or

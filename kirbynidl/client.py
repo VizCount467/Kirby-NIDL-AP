@@ -16,7 +16,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFOL) #Set to CRITICAL for release
+logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
 client_logger = logging.getLogger('Client') #This logger prints to the AP client window.
 
 ###DATA
@@ -138,15 +138,17 @@ def cmd_show_starrod(self):
     star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
     highest_clearable_world = star_rod_pieces_received//req_pieces_per_boss
     client_logger.info(
-        f'You have {star_rod_pieces_received}/{pool_pieces} Star Rod Pieces\n'
-        f'You need {req_pieces} Pieces to enter the final boss door'
-        )
+        f'You have {star_rod_pieces_received}/{pool_pieces} Star Rod Pieces.')
+    if star_rod_pieces_received >= req_pieces:
+        client_logger.info(f'You have enough Pieces ({req_pieces}) to enter the Final Boss Door.')
+    else:
+        client_logger.info(f'You need {req_pieces} Pieces to enter the Final Boss Door.')
     if highest_clearable_world < 6:
         client_logger.info(
-            f'You need {req_pieces_per_boss - star_rod_pieces_received%req_pieces_per_boss} more Pieces to enter the next boss door in World {highest_clearable_world+1}'
+            f'You need {req_pieces_per_boss - star_rod_pieces_received%req_pieces_per_boss} more Pieces to enter the next Boss Door in World {highest_clearable_world+1}.'
         )
     else:
-        client_logger.info('All other boss doors and levels are unlocked')
+        client_logger.info('All other boss doors and levels are unlocked.')
 
 def cmd_show_abilities(self):
     "List all unlocked Copy Abilities"
@@ -157,14 +159,40 @@ def cmd_show_abilities(self):
         if received_item_id_readable > 50 and received_item_id_readable < 75:
             ability_id = received_item_id_readable - 50
             unlocked_abilities.append(ABILITY_LIST_INDEXED[ability_id])
-    client_logger.info('Listing all unlocked Copy Abilities:')
+    client_logger.info('You have unlocked the following Copy Abilities:')
     client_logger.info('\n'.join(unlocked_abilities))
+
+def cmd_show_hp(self):
+    "List current HP bank value and HP item info"
+    client = self.ctx.client_handler
+    assert isinstance(client, KirbyNIDLClient)
+    client_logger.info(f'You have {client.hp_bank} HP in reserve.')
+    pep_drink_hp = 1 if client.kirby_max_hp <= 3 else 2
+    tomato_hp = client.kirby_max_hp - 1
+    client_logger.info(f'With the current max HP of {client.kirby_max_hp}, Pep Drinks are worth {pep_drink_hp} HP, and Maxim Tomatoes are worth {tomato_hp} HP.')
+
+def cmd_show_OWdoors(self):
+    "List all unlocked Overworld bonus doors by World"
+    client = self.ctx.client_handler
+    client_logger.info('Listing all currently unlocked bonus doors in the Overworld:')
+    for i in range(7):
+        do_print_gap = False
+        for sd in SIDE_DOORS_PER_WORLD[i]:
+            dn = WORLD_NAMES_INDEXED[i] + ' ' + SIDE_DOOR_MAP[int(sd)-1]
+            if not dn in client.locked_door_names:
+                client_logger.info(dn)
+                do_print_gap = True
+        if i < 6 and do_print_gap:
+            client_logger.info(' ')
+
 
 #List of custom commands allowed by the client
 knidl_client_commands = {
     "deathlink": cmd_toggle_deathlink,
     'starrod': cmd_show_starrod,
     'abilities': cmd_show_abilities,
+    'hp': cmd_show_hp,
+    'doors': cmd_show_OWdoors
     # "kill": cmd_receive_death, #Testing ONLY
 }
 
@@ -209,11 +237,11 @@ class KirbyNIDLClient(BizHawkClient):
         self.deathLink = DeathLinkCtx()
 
         #Obtain a list of every door that can possibly be locked at startup (then remove them as items come in)
-        self.locked_door_names = []
+        self.locked_door_names = set()
         for i in range(len(WORLD_NAMES_INDEXED)):
-            self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} Boss')
+            self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} Boss')
             for sd in SIDE_DOORS_PER_WORLD[i]:
-                self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[int(sd)-1]}') #ie, "Vegetable Valley Museum"
+                self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} {SIDE_DOOR_MAP[int(sd)-1]}') #ie, "Vegetable Valley Museum"
 
         #Internal data setup
         self.last_received_index = 0 #index of last item received; needed so we don't apply filler pickup items multiple times
@@ -291,7 +319,7 @@ class KirbyNIDLClient(BizHawkClient):
             except KeyError:
                 pass
 
-    ### Self Helper Function
+    ### Self Helper Functions
     def get_color_flag_writes(self, ctx: "BizHawkClientContext", last_loc_id=None, last_loc_ids=None):
         color_flag_writes = []
         color_array = get_door_color_bytes(ctx.missing_locations, last_loc_id, last_loc_ids)
@@ -302,6 +330,52 @@ class KirbyNIDLClient(BizHawkClient):
                     color_flag_writes.append((IW_CLEAR_FLAGS_START + i*7 + offset, [color_array[i][offset]], "IWRAM"))
                     color_flag_writes.append((EW_CLEAR_FLAGS_START + self.file_number*0x100 + i*7 + offset, [color_array[i][offset]], "EWRAM"))
         return color_flag_writes
+    
+    def set_unlocked_worlds(self, ctx: "BizHawkClientContext"):
+        #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
+        for i in range(self.worlds_cleared):
+            self.worlds_unlocked[i+1] = True #clear W1 = unlock W2
+        if ctx.slot_data.get("warp_station_skips") == True:
+            logger.info('Checking warp station keys to unlock worlds')
+            for itm in ctx.items_received:
+                item_name = ITEM_ID_TO_NAME[itm.item]
+                if item_name.endswith('Warp Station Key'):
+                    world_name = item_name.split(' Warp Station Key')[0]
+                    world_num = WORLD_NAMES_INDEXED.index(world_name)
+                    self.worlds_unlocked[world_num] = True
+        logger.info(f'Worlds unlocked is {' '.join([str(w) for w in self.worlds_unlocked])}')
+
+    def get_world_state_writes(self, ctx: "BizHawkClientContext"):
+        #set the level clear flags for levels in all CLEARED worlds to 02
+        logger.debug(ctx.checked_locations)
+        logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared count is {self.worlds_cleared}')
+        clear_flag_writes = self.get_color_flag_writes(ctx)
+        #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
+        bigswitch_bitstring = ''
+        for i in range(7):
+            if self.worlds_unlocked[i]:
+                bigswitch_bitstring = '1'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring #reverse add order because bits for W1 must be on right side of the number
+            else:
+                bigswitch_bitstring = '0'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring
+        self.switchexists_bitarr = int(bigswitch_bitstring,base=2)
+        switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
+        logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
+        clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
+                            (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
+                            (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
+                            (EW_SWITCHEXISTS_BITARR +self.file_number*0x100,[switchexists_bytes[0]],'EWRAM'), #bit padding is different in EWRAM. Probably a cleaner way to do this, but eh
+                            (EW_SWITCHEXISTS_BITARR+1 +self.file_number*0x100,[switchexists_bytes[1]],'EWRAM'),
+                            (EW_SWITCHEXISTS_BITARR+2 +self.file_number*0x100,[switchexists_bytes[2]],'EWRAM')
+                            ]
+        #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
+        ws_bitstring = ''.join(['1' if self.worlds_unlocked[6-i] else '0' for i in range(7)]) #6-i to reverse the order and put the bit for W1 at the right side of the number
+        ws_bitarr = int(ws_bitstring,base=2)
+        logger.info(f'ws_bitarr is {hex(ws_bitarr)}')
+        clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr], 'EWRAM'))
+        # logger.info(f'Clear Flags Write List is')
+        # logger.info(clear_flag_writes)
+        return clear_flag_writes
+        
     
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         try:
@@ -370,43 +444,11 @@ class KirbyNIDLClient(BizHawkClient):
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
 
                 #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
-                for i in range(self.worlds_cleared):
-                    self.worlds_unlocked[i+1] = True #clear W1 = unlock W2
-                if ctx.slot_data.get("warp_station_skips") == True:
-                    for i,w in enumerate(WORLD_NAMES_INDEXED):
-                        if ITEM_NAME_TO_ID[f'{w} Warp Station Key'] in ctx.items_received:
-                            self.worlds_unlocked[i] = True
-                logger.info(f'Worlds unlocked is {' '.join(self.worlds_unlocked)}')
+                self.set_unlocked_worlds(ctx)
 
-                #set the level clear flags for levels in all CLEARED worlds to 02
-                logger.debug(ctx.checked_locations)
-                logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared count is {self.worlds_cleared}')
-                clear_flag_writes = self.get_color_flag_writes(ctx)
-                #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
-                bigswitch_bitstring = ''
-                for i in range(7):
-                    if self.worlds_unlocked[i]:
-                        bigswitch_bitstring = '1'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring #reverse add order because bits for W1 must be on right side of the number
-                    else:
-                        bigswitch_bitstring = '0'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring
-                self.switchexists_bitarr = int(bigswitch_bitstring,base=2)
-                switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
-                logger.info(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
-                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
-                                    (EW_SWITCHEXISTS_BITARR +self.file_number*0x100,[switchexists_bytes[0]],'EWRAM'), #bit padding is different in EWRAM. Probably a cleaner way to do this, but eh
-                                    (EW_SWITCHEXISTS_BITARR+1 +self.file_number*0x100,[switchexists_bytes[1]],'EWRAM'),
-                                    (EW_SWITCHEXISTS_BITARR+2 +self.file_number*0x100,[switchexists_bytes[2]],'EWRAM')
-                                    ]
-                #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
-                ws_bitstring = ''.join(['1' if self.worlds_unlocked[6-i] else '0' for i in range(7)]) #6-i to reverse the order and put the bit for W1 at the right side of the number
-                ws_bitarr = int(ws_bitstring,base=2)
-                clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr], 'EWRAM'))
-                # logger.info(f'Clear Flags Write List is')
-                # logger.info(clear_flag_writes)
+                world_state_writes = self.get_world_state_writes(ctx)
                 await bizhawk.write(
-                    ctx.bizhawk_ctx, clear_flag_writes
+                    ctx.bizhawk_ctx, world_state_writes
                 )
                 #Boss Clear Failsafe: Check the bosses count, and award the checks for any boss locations that were "skipped".
                 #This handles the scenario of a client disconnecting, fighting a boss without getting their check, then losing that check because no boss refights
@@ -442,43 +484,53 @@ class KirbyNIDLClient(BizHawkClient):
                 self.worlds_cleared = int.from_bytes(worlds_clearedb)
 
                 #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
-                for i in range(self.worlds_cleared):
-                    self.worlds_unlocked[i+1] = True #clear W1 = unlock W2
-                if ctx.slot_data.get("warp_station_skips") == True:
-                    for i,w in enumerate(WORLD_NAMES_INDEXED):
-                        if ITEM_NAME_TO_ID[f'{w} Warp Station Key'] in ctx.items_received:
-                            self.worlds_unlocked[i] = True
-                logger.info(f'Worlds unlocked is {' '.join(self.worlds_unlocked)}')
+                self.set_unlocked_worlds(ctx)
+
+                #If WS skips, if any world is unlocked but its previous world is not, lock that world's "prev" door
+                if ctx.slot_data.get('warp_station_skips') == True:
+                    for i in range(6):
+                        prev_dn = f'{WORLD_NAMES_INDEXED[i+1]} Prev' 
+                        if self.worlds_unlocked[i+1] == True and self.worlds_unlocked[i] == False:
+                            logger.info(f'Adding {prev_dn} to locked door names')
+                            self.locked_door_names.add(prev_dn)
+                        else:
+                            if prev_dn in self.locked_door_names:
+                                logger.info(f'Removing {prev_dn} from locked door names')
+                                self.locked_door_names.remove(prev_dn)
                                             
-                logger.info(f'Attempting to write clear flags to unlock all levels and big switches. Worlds Cleared is {self.worlds_cleared}')
-                clear_flag_writes = self.get_color_flag_writes(ctx)
-                #Set Big Switch array (switches pressed) to True for UNLOCKED worlds
-                bigswitch_bitstring = ''
-                for i in range(7):
-                    if self.worlds_unlocked[i]:
-                        bigswitch_bitstring = '1'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring #reverse add order because bits for W1 must be on right side of the number
-                    else:
-                        bigswitch_bitstring = '0'*BIGSWITCHES_PER_WORLD_INDEX[i] + bigswitch_bitstring
-                self.switchexists_bitarr = int(bigswitch_bitstring,base=2) 
-                switchexists_bytes = self.switchexists_bitarr.to_bytes(3,byteorder='little')
-                logger.debug(f'Switch Exists bit array is {hex(self.switchexists_bitarr)}')
-                clear_flag_writes += [(IW_SWITCHEXISTS_BITARR,[switchexists_bytes[0]],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+1,[switchexists_bytes[1]],'IWRAM'),
-                                    (IW_SWITCHEXISTS_BITARR+2,[switchexists_bytes[2]],'IWRAM'),
-                                    (EW_SWITCHEXISTS_BITARR +self.file_number*0x100,[switchexists_bytes[0]],'EWRAM'), #bit padding is different in EWRAM. Probably a cleaner way to do this, but eh
-                                    (EW_SWITCHEXISTS_BITARR+1 +self.file_number*0x100,[switchexists_bytes[1]],'EWRAM'),
-                                    (EW_SWITCHEXISTS_BITARR+2 +self.file_number*0x100,[switchexists_bytes[2]],'EWRAM')
-                                    ]
-                #Finally, set the Warp Station bitarray to the correct value for unlocked worlds
-                ws_bitstring = ''.join(['1' if self.worlds_unlocked[6-i] else '0' for i in range(7)]) #6-i to reverse the order and put the bit for W1 at the right side of the number
-                ws_bitarr = int(ws_bitstring,base=2)
-                clear_flag_writes.append((WARP_STATION_BITARR, [ws_bitarr] , 'EWRAM'))
-                # logger.info(f'Clear Flags Write List is')
-                # logger.info(clear_flag_writes)
+                world_state_writes = self.get_world_state_writes(ctx)
+
+                #based on the doors in the locked door list, calculate what to write to the locked door bit array
+                locked_door_writes = []
+                for i,w in enumerate(WORLD_NAMES_INDEXED):
+                    door_bits = []
+                    for ldn in self.locked_door_names:
+                        if w in ldn:
+                            door_type = ldn.split(w)[1].strip() #Map the door in the locked door list to its index in the bit array
+                            door_bitarr_index = DOOR_NAME_TO_BIT_MAP.index(door_type)
+                            door_bits.append(door_bitarr_index)
+                    door_bitarr = sum(1 << b for b in door_bits) #compile the bit indexes in a single bit array number
+                    assert door_bitarr <= 0xFFFF
+                    door_bitarr_list = [door_bitarr & 0xFF, door_bitarr >> 8] #split the bit array number into a list of two byte numbers, the bigger one second (little-endian)
+                    locked_door_writes.append((DOOR_LOCK_BITARR+2*i, door_bitarr_list, 'IWRAM')) #Write the bit array number to the control panel with correct offset (2 bytes per world)
+                logger.info(f'locked door names before write: {self.locked_door_names}')
+                logger.info(locked_door_writes)
+
                 await bizhawk.write(
-                    ctx.bizhawk_ctx, clear_flag_writes
+                    ctx.bizhawk_ctx, world_state_writes + locked_door_writes
                 )
                 self.level_status_updated = True
+
+                #Boss Clear Failsafe: Check the bosses count, and award the checks for any boss locations that were "skipped".
+                #This also handles the case of fighting a late-world boss with Warp Station Skips before beating all earlier bosses. 
+                checked_boss_ids = [l for l in ctx.checked_locations if ' - Boss' in LOCATION_ID_TO_NAME[str(l)]]
+                expected_boss_ids = [(i+1)*100+99+KNIDL_BASE_ID for i in range(self.worlds_cleared)] #Boss ID is always X99
+                missing_boss_ids = [i for i in expected_boss_ids if not i in checked_boss_ids]
+                if missing_boss_ids:
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": missing_boss_ids
+                    }])
 
             
             #while in a level or the OW, check to see if there are items to award
@@ -513,6 +565,9 @@ class KirbyNIDLClient(BizHawkClient):
                     #Having awarded new one-off items, update the sync counter
                     self.sync_counter = len(ctx.items_received)
 
+                #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
+                self.set_unlocked_worlds(ctx)
+
                 #Loop through all items to check for all the client-made locks: door key, ability unlock items, and vitality upgrades
                 for received_item in ctx.items_received:
                     received_item_name = ITEM_ID_TO_NAME[received_item.item]
@@ -524,12 +579,6 @@ class KirbyNIDLClient(BizHawkClient):
                         dn = received_item_name[:-4] #minus Key, ie 'Vegetable Valley Bomb Rally'
                         if dn in self.locked_door_names:
                             self.locked_door_names.remove(dn)
-
-                    #If WS skips, if any world is unlocked but its previous world is not, lock that world's "prev" door
-                    if ctx.slot_data.get('warp_station_skips') == True:
-                        for i in range(6):
-                            if self.worlds_unlocked[i+1] == True and self.worlds_unlocked[i] == False:
-                                self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i+1]} Prev') 
 
                     if received_item_id_readable > 50 and received_item_id_readable < 75:
                         ability_id = received_item_id_readable - 50
@@ -550,6 +599,18 @@ class KirbyNIDLClient(BizHawkClient):
                         (KIRBY_MAX_HP_ADR,[hp_val],'EWRAM')
                         ]
                     )
+
+                #If WS skips, if any world is unlocked but its previous world is not, lock that world's "prev" door
+                if ctx.slot_data.get('warp_station_skips') == True:
+                    for i in range(6):
+                        prev_dn = f'{WORLD_NAMES_INDEXED[i+1]} Prev' 
+                        if self.worlds_unlocked[i+1] == True and self.worlds_unlocked[i] == False:
+                            logger.info(f'Adding {prev_dn} to locked door names')
+                            self.locked_door_names.add(prev_dn)
+                        else:
+                            if prev_dn in self.locked_door_names:
+                                logger.info(f'Removing {prev_dn} from locked door names')
+                                self.locked_door_names.remove(prev_dn)
                 #reset the current world and level if we're in the OW
                 if screen_mod == 0x5:
                     self.current_world = -1
@@ -559,7 +620,7 @@ class KirbyNIDLClient(BizHawkClient):
                 if ctx.slot_data.get('lock_bonus_doors') == False: #If side doors are not locked, refresh the list with just the boss doors
                     self.locked_door_names = []
                     for i in range(len(WORLD_NAMES_INDEXED)):
-                        self.locked_door_names.append(f'{WORLD_NAMES_INDEXED[i]} Boss')
+                        self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} Boss')
 
                 #Look at the number of star rod pieces and unlock the corresponding boss doors
                 star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
@@ -569,7 +630,7 @@ class KirbyNIDLClient(BizHawkClient):
                 boss_doors_to_unlock = [wn + ' Boss' for wn in WORLD_NAMES_INDEXED[:boss_door_count]]
                 if star_rod_pieces_received >= self.req_pieces:
                     boss_doors_to_unlock.append('Rainbow Resort Boss') 
-                logger.info(f'removing lock for following boss doors: {boss_doors_to_unlock}')
+                logger.info(f'Removing lock for following boss doors: {boss_doors_to_unlock}')
                 for dn in boss_doors_to_unlock:
                     if dn in self.locked_door_names:
                         self.locked_door_names.remove(dn)
@@ -578,7 +639,6 @@ class KirbyNIDLClient(BizHawkClient):
                 locked_door_writes = []
                 for i,w in enumerate(WORLD_NAMES_INDEXED):
                     door_bits = []
-                    logger.debug(f'locked door names before write is {self.locked_door_names}')
                     for ldn in self.locked_door_names:
                         if w in ldn:
                             door_type = ldn.split(w)[1].strip() #Map the door in the locked door list to its index in the bit array
@@ -588,7 +648,8 @@ class KirbyNIDLClient(BizHawkClient):
                     assert door_bitarr <= 0xFFFF
                     door_bitarr_list = [door_bitarr & 0xFF, door_bitarr >> 8] #split the bit array number into a list of two byte numbers, the bigger one second (little-endian)
                     locked_door_writes.append((DOOR_LOCK_BITARR+2*i, door_bitarr_list, 'IWRAM')) #Write the bit array number to the control panel with correct offset (2 bytes per world)
-                #logger.debug(locked_door_writes)
+                logger.info(f'locked door names before write: {self.locked_door_names}')
+                logger.info(locked_door_writes)
 
                 #Similarly, based on the abilities in the locked abilities list, calculate what to write to the "mouthguard" bit array
                 #This is simpler since the entire thing fits in <=4 bytes
@@ -606,10 +667,13 @@ class KirbyNIDLClient(BizHawkClient):
                 #Split the full word into 4 byte numbers, bigger places last because little-endian again
                 ability_lock_writes = [(ABILITY_LOCK_BITARR, ability_bitarr_list, 'IWRAM')]
 
+                #Finally, do a general world state write for the effects of any warp station keys
+                world_state_writes = self.get_world_state_writes(ctx)
+
                 #Set the sync counter now that any needed items have been awarded
                 #Note we may need a two-byte write if we ever have more than 254 max possible checks/items (since FF 255 is the default) (currently it's 201)
                 #Also, write the correct byte string to the locked door bit array and ability lock array
-                sync_writes = locked_door_writes + ability_lock_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
+                sync_writes = locked_door_writes + ability_lock_writes + world_state_writes + [(sync_adr, [self.sync_counter], "EWRAM")]
                 logger.info(f'attempting to write new sync counter {self.sync_counter}, and locked door bit array')
                 logger.debug(sync_writes)
                 await bizhawk.write(ctx.bizhawk_ctx, sync_writes
@@ -653,7 +717,7 @@ class KirbyNIDLClient(BizHawkClient):
                         else:
                             hp = 2
                         self.hp_bank += hp
-                        logger.info(f'Added {hp} HP to Bank')
+                        logger.info(f'Added {hp} HP to Bank. Bank at {self.hp_bank}')
                         item_award_id = 2
                     elif current_item == 1: #Star Rod
                         item_award_id = 5

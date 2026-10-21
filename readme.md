@@ -76,6 +76,11 @@ Also check out the [Poptracker by Blakel](https://github.com/blakelmenakle/KNiDL
     - Updated docs with BIOS crash note, poptracker links
     - Fixed client not receiving starting inventory
     - Added Warp Station skips to Options, Tests, and gen logic (no client yet though)
+- 10/21/26
+    - Updated Logic for Crash lighting fuses and 7-5 Cannon with Burning
+    - Added additional "hp" and "doors" commands
+    - Added Warp Station skips to client (tested)
+    - Some function-based abstraction/reformatting of client.py
 
 
 ## Credits and Shout-Outs

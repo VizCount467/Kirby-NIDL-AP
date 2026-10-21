@@ -72,6 +72,7 @@ Starting a new file with collected items will cause all collected items to be aw
 - `Advanced Logic`
     Incorporates several difficult, obscure, or unintuitive tricks into item placement logic. Examples include
     - Using a double star from inhaling two enemies at once to destroy metal blocks
+    - Using Crash to light fuses
     - Breaking metal blocks with inconvenient placement using unideal abilities (ie, 6-6 Big Switch with Wheel)
     - Using various abilities to break blocks through walls or from below in ways would seem impossible (ie, 2-4 laser room with cutter)
 
@@ -91,3 +92,9 @@ Starting a new file with collected items will cause all collected items to be aw
 
 - `/abilities`:
     Lists all currently unlocked abilities. Use this if you want to know what abilities you have access to at any time. 
+
+- `/hp`:
+    Displays current reserve HP and the value of healing items based on your current max HP. 
+
+- `/doors`:
+    Lists all currently unlocked bonus doors in the overworld (Museums, Arenas, Minigames). Useful if you want to know if a door is accessible without having to travel there.  

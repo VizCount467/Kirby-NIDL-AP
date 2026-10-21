@@ -28,7 +28,7 @@ class TestAdvLogicOn(KNIDLTestBase):
         'advanced_logic' : True
     }
 
-    def test_adv_logic_off_1(self) -> None:
+    def test_adv_logic_on_1(self) -> None:
         with self.subTest('Test if 2-2 Cave 1up is possible with only Throw and Advanced Logic on'):
             for _ in range(3):
                 self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock world 4
@@ -37,8 +37,8 @@ class TestAdvLogicOn(KNIDLTestBase):
             self.collect(self.get_item_by_name('Throw'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
-    def test_adv_logic_off_2(self) -> None:
-        with self.subTest('Ice Cream Island 4 - Pep Drink (Laser Room 3)'):
+    def test_adv_logic_on_2(self) -> None:
+        with self.subTest('2-4 Laser Room with Cutter'):
             for _ in range(1):
                 self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock world 2
             loc = self.world.get_location('Ice Cream Island 4 - Pep Drink (Laser Room 3)')
@@ -46,11 +46,20 @@ class TestAdvLogicOn(KNIDLTestBase):
             self.collect(self.get_item_by_name('Cutter'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
-    def test_adv_logic_off_3(self) -> None:
-        with self.subTest('Ice Cream Island 5 - 1up (Metal Blocks 1)'):
+    def test_adv_logic_on_3(self) -> None:
+        with self.subTest('2-5 Metal Blocks with nothing'):
             for _ in range(1):
                 self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock world 2
             loc = self.world.get_location('Ice Cream Island 5 - 1up (Metal Blocks 1)')
+            self.assertTrue(loc.can_reach(self.multiworld.state))
+
+    def test_adv_logic_on_3(self) -> None:
+        with self.subTest('6-5 Big Switch with Crash'):
+            for _ in range(6):
+                self.collect(self.get_item_by_name('Star Rod Piece')) ##unlock world 2
+            loc = self.world.get_location('Ice Cream Island 5 - 1up (Metal Blocks 1)')
+            self.assertFalse(loc.can_reach(self.multiworld.state))
+            self.collect(self.get_item_by_name('Crash'))
             self.assertTrue(loc.can_reach(self.multiworld.state))
 
             
