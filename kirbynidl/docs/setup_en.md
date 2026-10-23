@@ -39,3 +39,4 @@ By default, opening a patch file will do steps 1-5 below for you automatically. 
 You should now be able to receive and send items. You'll need to do these steps every time you want to reconnect. Kirby Nightmare in Dreamland relies on the AP connection to send and receive items -- you cannot obtain any items without a connection, nor will any locations you check be reflected in the multiworld. Thus, playing without a connection is completely useless, and may cause certain systems to break. 
 
 
+
