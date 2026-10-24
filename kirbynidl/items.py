@@ -138,10 +138,13 @@ def create_all_items(world: KirbyNIDLWorld) -> None:
             else:
                 world.push_precollected(world.create_item(k))
         if ITEM_TABLE_READABLE[k] > 200: #Item is a side door key
-            if world.options.lock_bonus_doors: #If side doors are locked, add keys to item pool. Else, add to starting inventory
+            if world.options.lock_bonus_doors: #If side doors are locked, add keys to item pool. Else, add to starting inventory (Except WS keys if WS skips are on)
                 itempool.append(world.create_item(k))
             else:
-                world.push_precollected(world.create_item(k))
+                if world.options.warp_star_skips == True and 'Warp Station' in k:
+                    itempool.append(world.create_item(k))
+                else:
+                    world.push_precollected(world.create_item(k))
         
 
     #Now find how much filler to place
