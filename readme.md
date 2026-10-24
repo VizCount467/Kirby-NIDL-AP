@@ -85,7 +85,7 @@ Also check out the [Poptracker by Blakel](https://github.com/blakelmenakle/KNiDL
     - Some function-based abstraction/reformatting of client.py
 - 10/23/26
     - Final prep for 0.0.2 release
-    - Fix bug where "locked door names" was being initialized as a list and not set
+    - Fixed bug where "locked door names" was being initialized as a list and not a set
     - Fixed Warp Station Skips + Bonus Doors option putting (nearly) entire game in sphere 1 (probably)
 
 
