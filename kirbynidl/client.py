@@ -16,7 +16,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO) #Set to CRITICAL for release
+logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
 client_logger = logging.getLogger('Client') #This logger prints to the AP client window.
 
 ###DATA
