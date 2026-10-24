@@ -37,7 +37,8 @@ class AdvancedLogic(Toggle):
     display_name = 'Advanced Logic'
 
 class LockBonusDoors(DefaultOnToggle): #instead of setting the default of the Toggle option to "true", you must use this alt object to set a toggle option as true by default (ugh)
-    """Locks all doors to minigames, arenas, museums and warp star stations in the overworld until a Key Item is collected. Adds bonus door keys to the item pool"""
+    """Locks all doors to minigames, arenas, museums and warp star stations in the overworld until a Key Item is collected. Adds bonus door keys to the item pool.
+    Warp Star Stations will still be locked behind keys if this options is disabled while Warp Station Skips are enabled"""
     display_name = "Lock Bonus Doors"
 
 class LockCopyAbilities(DefaultOnToggle):

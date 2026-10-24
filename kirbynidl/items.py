@@ -102,7 +102,7 @@ def create_classified_item(world: KirbyNIDLWorld, name: str) -> KirbyNIDLItem:
     elif name == 'Sleep':
         classification = ItemClassification.trap
     elif 'Key' in name:
-        if 'Arena' in name or 'Warp Station' in name: #Only Arena keys are progression, Minigames are fluff, Museums and Warp Stations aren't all that useful
+        if 'Arena' in name or 'Warp Station' in name or 'Museum' in name: #Only Arena keys are progression, Minigames are fluff, Museums and Warp Stations aren't all that useful but can be in rules still
             classification = ItemClassification.progression
         else:
             classification = ItemClassification.filler

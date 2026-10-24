@@ -16,7 +16,7 @@ from .items import ITEM_NAME_TO_ID, SIDE_DOORS_PER_WORLD, SIDE_DOOR_MAP
 import copy, logging, time
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.CRITICAL) #Set to CRITICAL for release
+logger.setLevel(logging.INFO) #Set to CRITICAL for release
 client_logger = logging.getLogger('Client') #This logger prints to the AP client window.
 
 ###DATA
@@ -568,6 +568,15 @@ class KirbyNIDLClient(BizHawkClient):
                 #Calculate unlocked worlds based on worlds cleared and Warps Stations (if option is on)
                 self.set_unlocked_worlds(ctx)
 
+                #If side doors are not locked, refresh the locked door list with just the boss doors (and the warp station doors if WS Skips are on)
+                if ctx.slot_data.get('lock_bonus_doors') == False: 
+                    self.locked_door_names = set()
+                    for i in range(len(WORLD_NAMES_INDEXED)):
+                        self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} Boss')
+                    if ctx.slot_data.get('warp_station_skips') == True:
+                        for i in range(len(WORLD_NAMES_INDEXED)):
+                            self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} Warp Station')
+
                 #Loop through all items to check for all the client-made locks: door key, ability unlock items, and vitality upgrades
                 for received_item in ctx.items_received:
                     received_item_name = ITEM_ID_TO_NAME[received_item.item]
@@ -611,16 +620,12 @@ class KirbyNIDLClient(BizHawkClient):
                             if prev_dn in self.locked_door_names:
                                 logger.info(f'Removing {prev_dn} from locked door names')
                                 self.locked_door_names.remove(prev_dn)
+
                 #reset the current world and level if we're in the OW
                 if screen_mod == 0x5:
                     self.current_world = -1
                     self.current_level = -1
                     self.current_pickup_flag_adr = 0
-
-                if ctx.slot_data.get('lock_bonus_doors') == False: #If side doors are not locked, refresh the list with just the boss doors
-                    self.locked_door_names = []
-                    for i in range(len(WORLD_NAMES_INDEXED)):
-                        self.locked_door_names.add(f'{WORLD_NAMES_INDEXED[i]} Boss')
 
                 #Look at the number of star rod pieces and unlock the corresponding boss doors
                 star_rod_pieces_received = sum(1 for i in ctx.items_received if ITEM_ID_TO_NAME[i.item] == 'Star Rod Piece')
