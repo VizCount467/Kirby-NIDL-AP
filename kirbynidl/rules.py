@@ -283,17 +283,18 @@ def set_all_location_rules(world: KirbyNIDLWorld) -> None:
                    lambda state, : can_use_any_ability(state, world,  (
                            'Beam','Spark','Burning','Sword','Freeze','Needle','Laser','Hi-Jump','Parasol','Hammer','Throw'
                    )))
+        #7-5 Cannon: On base logic, Fire AND Burning; player can use whichever they're best at. On Advanced, either, and also Crash
     if not world.options.advanced_logic:
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
-                lambda state, : can_use_ability(state, world,  'Fire'))
+                lambda state, : can_use_ability(state, world,  'Fire') and can_use_ability(state, world,  'Burning'))
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 2)"),
-                lambda state, : can_use_ability(state, world,  'Fire'))
+                lambda state, : can_use_ability(state, world,  'Fire') and can_use_ability(state, world,  'Burning'))
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 3)"),
-                lambda state, : can_use_ability(state, world,  'Fire'))
+                lambda state, : can_use_ability(state, world,  'Fire') and can_use_ability(state, world,  'Burning'))
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 4)"),
-                lambda state, : can_use_ability(state, world,  'Fire'))
+                lambda state, : can_use_ability(state, world,  'Fire') and can_use_ability(state, world,  'Burning'))
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 5)"),
-                lambda state, : can_use_ability(state, world,  'Fire'))
+                lambda state, : can_use_ability(state, world,  'Fire') and can_use_ability(state, world,  'Burning'))
     else:
         set_rule(world.get_location("Rainbow Resort 5 - 1up (Cannon Reward 1)"),
                 lambda state, : can_use_any_ability(state, world, ('Fire','Crash','Burning')))
