@@ -93,4 +93,5 @@ Also check out the [Poptracker by Blakel](https://github.com/blakelmenakle/KNiDL
 
 - Thanks to the RetroAchievements community for getting me started with their RAM map documentation
 - Thanks to aquova and their [KNDL-Rando Repo](https://github.com/Aquova/KNDL-Rando) for additional RAM mapping and initial draft of an ability-locking system. 
-- Thanks to fellow GBA APWorld devs brodieberger ([Mega Man Zero 3](https://github.com/brodieberger/MMZero3Archipelago)) and lilDavid ([Wario Land 4](https://github.com/lilDavid/Archipelago-Wario-Land-4)). Many structures and concepts from their code were studied and utilized in this project. 
+- Thanks to fellow GBA APWorld devs brodieberger ([Mega Man Zero 3](https://github.com/brodieberger/MMZero3Archipelago)) and lilDavid ([Wario Land 4](https://github.com/lilDavid/Archipelago-Wario-Land-4)). Many structures and concepts from their code were studied and utilized in this project.
+- Thanks to the Kirby Wiki for listing out the enemies in each and every level, with KA vs KNiDL differences! 
